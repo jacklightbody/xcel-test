@@ -18,11 +18,11 @@
             <div id="test-section" style="display: block;">
                 <div class="input-container">
                     <div class="input-method-tabs">
-                        <button id="paste-tab" class="tab-button active">Paste JSON</button>
-                        <button id="file-tab" class="tab-button">Load File</button>
+                        <button id="file-tab" class="tab-button active">Load File</button>
+                        <button id="paste-tab" class="tab-button">Paste JSON</button>
                     </div>
                     
-                    <div id="paste-input-section" class="input-section">
+                    <div id="paste-input-section" class="input-section" style="display: none;">
                         <label for="test-json-input" class="input-label">Paste JSON test file content:</label>
                         <textarea id="test-json-input" class="test-json-textarea" placeholder='Paste JSON here, e.g.:
 [
@@ -34,7 +34,7 @@
 ]'></textarea>
                     </div>
                     
-                    <div id="file-input-section" class="input-section" style="display: none;">
+                    <div id="file-input-section" class="input-section">
                         <label for="test-file-input" class="input-label">Select JSON test file:</label>
                         <div class="file-input-container">
                             <input type="file" id="test-file-input" accept=".json" style="display: none;">
@@ -66,16 +66,17 @@
 
             <div id="display-options-container" class="display-options-container">
                 <div class="display-options-header" id="display-options-toggle">
-                    <h3>Display Options</h3>
+                    <h3>Options</h3>
                     <span class="toggle-icon" id="toggle-icon">▼</span>
                 </div>
                 
-                <div id="display-options" class="display-options-content" style="display: none;">
-                    <div class="display-option">
-                        <input type="checkbox" id="hide-passed-tests" checked>
-                        <label for="hide-passed-tests">Hide passed tests (default)</label>
+                    <div id="display-options" class="display-options-content" style="display: none;">
+                        <div class="display-option">
+                            <input type="checkbox" id="hide-passed-tests" checked>
+                            <label for="hide-passed-tests">Hide passed tests (default)</label>
+                        </div>
+
                     </div>
-                </div>
             </div>
         </main>
     </div>

@@ -2,8 +2,10 @@
 
 let currentTest = null;
 let currentTests = null; // Array of tests if multiple tests are loaded
-let currentInputMethod = 'paste'; // 'paste' or 'file'
+let currentInputMethod = 'file'; // 'paste' or 'file'
 let loadedFileName = null;
+let enableLocking = false; // Locking toggle - OFF by default
+let isTestRunning = false; // Track if tests are currently running
 
 Office.onReady((info) => {
     if (info.host === Office.HostType.Excel) {
@@ -19,12 +21,35 @@ Office.onReady((info) => {
     }
 });
 
+function switchInputMethod(method) {
+    currentInputMethod = method;
+    
+    const pasteTab = document.getElementById('paste-tab');
+    const fileTab = document.getElementById('file-tab');
+    const pasteSection = document.getElementById('paste-input-section');
+    const fileSection = document.getElementById('file-input-section');
+    
+    // Update tab active states
+    if (method === 'paste') {
+        pasteTab.classList.add('active');
+        fileTab.classList.remove('active');
+        pasteSection.style.display = 'block';
+        fileSection.style.display = 'none';
+    } else {
+        fileTab.classList.add('active');
+        pasteTab.classList.remove('active');
+        fileSection.style.display = 'block';
+        pasteSection.style.display = 'none';
+    }
+}
+
 function initializeUI() {
     // Test runner should be loaded via script tag in HTML
     setupEventHandlers();
     
     // Show test section by default
     document.getElementById('test-section').style.display = 'block';
+    switchInputMethod(currentInputMethod);
 }
 
 // Ensure UI is initialized when DOM is ready
@@ -83,6 +108,8 @@ function setupEventHandlers() {
         hidePassedTestsCheckbox.addEventListener('change', filterAndDisplayResults);
     }
     
+
+    
     // Display options toggle
     const displayOptionsToggle = document.getElementById('display-options-toggle');
     if (displayOptionsToggle) {
@@ -120,28 +147,6 @@ function toggleDisplayOptions() {
     } else {
         displayOptions.style.display = 'none';
         toggleIcon.textContent = '▼';
-    }
-}
-
-function switchInputMethod(method) {
-    currentInputMethod = method;
-    
-    const pasteTab = document.getElementById('paste-tab');
-    const fileTab = document.getElementById('file-tab');
-    const pasteSection = document.getElementById('paste-input-section');
-    const fileSection = document.getElementById('file-input-section');
-    
-    // Update tab active states
-    if (method === 'paste') {
-        pasteTab.classList.add('active');
-        fileTab.classList.remove('active');
-        pasteSection.style.display = 'block';
-        fileSection.style.display = 'none';
-    } else {
-        fileTab.classList.add('active');
-        pasteTab.classList.remove('active');
-        fileSection.style.display = 'block';
-        pasteSection.style.display = 'none';
     }
 }
 
@@ -329,35 +334,22 @@ function displayMultipleTestInfo(tests) {
 
 // Shared function to execute tests
 async function executeTests(testsToRun, buttonElement) {
-    const allResults = [];
-    let passedCount = 0;
+    // Set global running state
+    isTestRunning = true;
+    updateUIForTestState(true);
     
-    // Run tests sequentially
-    for (let i = 0; i < testsToRun.length; i++) {
-        // Update button text to show progress
-        if (buttonElement) {
-            buttonElement.querySelector('.ms-Button-label').textContent = `Running test ${i + 1}/${testsToRun.length}...`;
-        }
+    try {
+        console.log(`Running test suite of ${testsToRun.length} tests`);
+
+        const suiteResult = await window.ExcelTestRunner.runTestSuite(testsToRun);
         
-        try {
-            const result = await window.ExcelTestRunner.runTest(testsToRun[i]);
-            allResults.push(result);
-            if (result.passed) {
-                passedCount++;
-            }
-        } catch (error) {
-            // If a test fails, add error result but continue with other tests
-            allResults.push({
-                testName: testsToRun[i].name || `Test ${i + 1}`,
-                passed: false,
-                assertionResults: [],
-                error: error.message
-            });
-        }
+        displayMultipleResults(suiteResult.results, suiteResult.passedCount, suiteResult.totalCount);
+        
+    } finally {
+        // Always reset the running state
+        isTestRunning = false;
+        updateUIForTestState(false);
     }
-    
-    // Display results
-    displayMultipleResults(allResults, passedCount, testsToRun.length);
 }
 
 
@@ -487,4 +479,12 @@ function clearResults() {
 function clearErrors() {
     document.getElementById('error-section').style.display = 'none';
     document.getElementById('error-content').textContent = '';
+}
+
+function updateUIForTestState(running) {
+    const runTestButton = document.getElementById('run-test-button');
+    if (runTestButton) {
+        runTestButton.disabled = running;
+        runTestButton.querySelector('.ms-Button-label').textContent = running ? 'Running...' : 'Run';
+    }
 }

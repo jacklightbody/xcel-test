@@ -3,6 +3,8 @@
  * Core logic for executing tests with state snapshot/restore
  */
 
+console.log('=== test-runner.js LOADING ===');
+
 /**
  * Parses a cell address like "Assumptions!B2" into {worksheetName, cellAddress}
  */
@@ -16,7 +18,6 @@ function parseCellAddress(fullAddress) {
         cellAddress: parts[1]
     };
 }
-
 /**
  * Snapshot the current state of all cells referenced in inputs and assertions
  */
@@ -56,7 +57,7 @@ async function snapshotWorksheetState(context, cellAddresses) {
                 range.load("formulas");
             }
         } catch (error) {
-            throw new Error(`Failed to access worksheet "${worksheetName}": ${error.message}`);
+            throw new Error(`Failed to access worksheet "${worksheetName}": ${error.message}`, error);
         }
     }
     
@@ -108,7 +109,7 @@ async function applyInputs(context, inputs) {
                 range.values = [[input.value]];
             }
         } catch (error) {
-            throw new Error(`Failed to apply input to worksheet "${worksheetName}": ${error.message}`);
+            throw new Error(`Failed to apply input to worksheet "${worksheetName}": ${error.message}`, error);
         }
     }
     
@@ -155,7 +156,7 @@ async function readOutputs(context, assertionCells) {
             // Load properties on the range object
             range.load("values");
         } catch (error) {
-            throw new Error(`Failed to read output from cell "${cellAddress}": ${error.message}`);
+            throw new Error(`Failed to read output from cell "${cellAddress}": ${error.message}`, error);
         }
     }
     
@@ -230,7 +231,7 @@ function evaluateAssertions(outputs, assertions) {
 async function restoreState(context, snapshot) {
     const workbook = context.workbook;
     
-    // Group by worksheet
+    // Group cells by worksheet
     const cellsByWorksheet = {};
     for (const [fullAddress, state] of Object.entries(snapshot)) {
         const parsed = parseCellAddress(fullAddress);
@@ -243,25 +244,28 @@ async function restoreState(context, snapshot) {
         });
     }
     
-    // Restore each worksheet
+    // Restore cells
     for (const [worksheetName, cellList] of Object.entries(cellsByWorksheet)) {
         try {
             const worksheet = workbook.worksheets.getItem(worksheetName);
             
             for (const cell of cellList) {
-                const range = worksheet.getRange(cell.cellAddress);
-                const state = cell.state;
-                
-                // Restore formula if it existed, otherwise restore value
-                if (state.formula && state.formula !== '') {
-                    range.formulas = [[state.formula]];
-                } else {
-                    range.values = [[state.value]];
+                try {
+                    const range = worksheet.getRange(cell.cellAddress);
+                    const state = cell.state;
+                    
+                    // Try formula first, otherwise value
+                    if (state.formula && state.formula !== '') {
+                        range.formulas = [[state.formula]];
+                    } else {
+                        range.values = [[state.value]];
+                    }
+                } catch (cellError) {
+                    console.error(`Failed to restore cell ${cell.cellAddress}:`, cellError);
                 }
             }
         } catch (error) {
-            // Log error but continue restoring other cells
-            console.error(`Failed to restore cell in worksheet "${worksheetName}": ${error.message}`);
+            console.error(`Failed to restore worksheet "${worksheetName}":`, error);
         }
     }
     
@@ -269,85 +273,155 @@ async function restoreState(context, snapshot) {
 }
 
 /**
- * Main function to run a single test case
+ * Public function to run multiple tests with suite-level locking
  */
-async function runTest(testCase) {
+async function runTestSuite(testCases) {
     return Excel.run(async (context) => {
-        // Collect all cell addresses that need to be snapshotted
+        // Collect all cell addresses for snapshot
         const allCellAddresses = new Set();
         
-        // Add input cells
-        if (testCase.inputs) {
-            for (const cellAddress of Object.keys(testCase.inputs)) {
-                allCellAddresses.add(cellAddress);
+        for (const testCase of testCases) {
+            // Add input cells
+            if (testCase.inputs) {
+                for (const cellAddress of Object.keys(testCase.inputs)) {
+                    allCellAddresses.add(cellAddress);
+                }
+            }
+            
+            // Add assertion cells
+            if (testCase.assertions) {
+                for (const assertion of testCase.assertions) {
+                    allCellAddresses.add(assertion.cell);
+                }
             }
         }
         
-        // Add assertion cells
-        if (testCase.assertions) {
-            for (const assertion of testCase.assertions) {
-                allCellAddresses.add(assertion.cell);
-            }
-        }
-        
-        const cellAddressArray = Array.from(allCellAddresses);
-        
-        // Snapshot current state
+        // Create snapshot of current state
         let snapshot = null;
         try {
+            const cellAddressArray = Array.from(allCellAddresses);
             snapshot = await snapshotWorksheetState(context, cellAddressArray);
         } catch (error) {
-            throw new Error(`Failed to snapshot state: ${error.message}`);
+            console.error(`Warning: Failed to create suite-level snapshot:`, error);
         }
         
+        const allResults = [];
+        let passedCount = 0;
+        
         try {
-            // Apply inputs
-            if (testCase.inputs && Object.keys(testCase.inputs).length > 0) {
-                await applyInputs(context, testCase.inputs);
+            // Run tests sequentially
+            for (let i = 0; i < testCases.length; i++) {
+                console.log(`Running test ${i + 1}/${testCases.length}: ${testCases[i].name || 'Unnamed Test'}`);
+                
+                try {
+                    const result = await runTestWithoutProtection(testCases[i], context);
+                    allResults.push(result);
+                    if (result.passed) {
+                        passedCount++;
+                    }
+                } catch (error) {
+                    const testName = testCases[i].name || `Test ${i + 1}`;
+                    console.log(`Error running test ${testName}:`, error);
+                    // If a test fails, add error result but continue with other tests
+                    allResults.push({
+                        testName,
+                        passed: false,
+                        assertionResults: [],
+                        error: error.message
+                    });
+                }
             }
             
-            // Force recalculation
-            await forceRecalculate(context);
-            
-            // Read outputs
-            const assertionCells = testCase.assertions.map(a => a.cell);
-            const outputs = await readOutputs(context, assertionCells);
-            
-            // Evaluate assertions
-            const evaluation = evaluateAssertions(outputs, testCase.assertions);
-            
             return {
-                testName: testCase.name || 'Unnamed Test',
-                passed: evaluation.allPassed,
-                assertionResults: evaluation.results
+                results: allResults,
+                passedCount: passedCount,
+                totalCount: testCases.length
             };
             
         } finally {
-            // Always restore state, even if there was an error
+            // Restore state at the end of the suite
             if (snapshot) {
                 try {
                     await restoreState(context, snapshot);
+                    console.log("State restored successfully");
                 } catch (restoreError) {
-                    // Log but don't throw - we want the test results even if restore fails
-                    console.error(`Warning: Failed to restore state: ${restoreError.message}`);
+                    console.error("Failed to restore state:", restoreError);
                 }
             }
         }
     });
 }
-
-// Export functions globally for Office.js add-in
-if (typeof window !== 'undefined') {
-    window.ExcelTestRunner = {
-        runTest: runTest,
-        parseCellAddress: parseCellAddress
+/**
+ * Private function to run a single test without protection (for use within test suites)
+ */
+async function runTestWithoutProtection(testCase, context) {
+    // Apply inputs
+    if (testCase.inputs && Object.keys(testCase.inputs).length > 0) {
+        await applyInputs(context, testCase.inputs);
+    }
+    
+    // Force recalculation
+    await forceRecalculate(context);
+    
+    // Read outputs
+    const assertionCells = testCase.assertions.map(a => a.cell);
+    const outputs = await readOutputs(context, assertionCells);
+    
+    // Evaluate assertions
+    const results = [];
+    for (let i = 0; i < testCase.assertions.length; i++) {
+        const assertion = testCase.assertions[i];
+        const actualValue = outputs[assertion.cell];
+        
+        // Convert expected value to match actual value type
+        let expectedValue = assertion.equals; // Test data uses 'equals' field
+        if (typeof actualValue === 'number' && typeof expectedValue === 'string') {
+            expectedValue = parseFloat(expectedValue);
+        } else if (typeof actualValue === 'boolean') {
+            expectedValue = expectedValue.toLowerCase() === 'true';
+        }
+        
+        const passed = actualValue === expectedValue;
+        
+        // Calculate difference for numeric values
+        let difference = null;
+        let tolerance = null;
+        if (typeof actualValue === 'number' && typeof expectedValue === 'number') {
+            difference = actualValue - expectedValue;
+            tolerance = assertion.tolerance || 0;
+        }
+        
+        results.push({
+            cell: assertion.cell,
+            expected: expectedValue,
+            actual: actualValue,
+            passed: passed,
+            message: assertion.message || `Cell ${assertion.cell} should be ${expectedValue}`,
+            difference: difference,
+            tolerance: tolerance
+        });
+    }
+    
+    return {
+        name: testCase.name || 'Unnamed Test',
+        passed: results.every(r => r.passed),
+        assertionResults: results,
+        error: null
     };
 }
+
+// Export functions globally for Office.js add-in
+console.log('=== EXPORTING ExcelTestRunner ===');
+window.ExcelTestRunner = {
+    runTestSuite: runTestSuite,
+    parseCellAddress: parseCellAddress
+};
+console.log('=== ExcelTestRunner EXPORTED ===:', window.ExcelTestRunner);
+console.log('=== SCRIPT COMPLETE ===');
 
 // Also support Node.js/CommonJS for reference
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        runTest: runTest,
         parseCellAddress: parseCellAddress
     };
 }

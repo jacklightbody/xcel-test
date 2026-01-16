@@ -157,4 +157,7 @@ This means the unit tests both **preserves state** and **exactly match** the nat
 - Guard mode to retrigger on save automatically
   - Also keyboard shortcuts
 - Locking. Prevent (or at least detect) user edits while tests are running
-
+- Snapshot immprovements. Can we snapshot and restore once across every test case rather than one per test?
+- Parallelism or some other method to speed up for large tests suites
+- Allow interrupting/cancelling a test
+- Handle different types of outputs (true/false, string) not just floats
