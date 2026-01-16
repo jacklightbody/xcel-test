@@ -102,7 +102,7 @@ If the automated setup fails, follow these manual steps:
    - **Mac users**: The manifest is auto-installed! Just go to **Inert** → **My Add-ins** and select "Excel Unit Test Runner"
    - **Other users**: Go to **Insert** → **Add-ins** → **My Add-ins** → **Upload My Add-in** and select `manifest.xml`
 
-![where to find the add-in](https://github.com/jacklightbody/xcel-testraw/master/documentation/add-add-in.png)
+![where to find the add-in](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/documentation/add-add-in.png)
 
 
 The `manifest.xml` is already configured for `https://localhost:3000`.
