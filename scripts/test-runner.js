@@ -3,7 +3,7 @@
  * Core logic for executing tests with state snapshot/restore
  */
 
-console.log('=== test-runner.js LOADING ===');
+
 
 /**
  * Parses a cell address like "Assumptions!B2" into {worksheetName, cellAddress}
@@ -311,8 +311,6 @@ async function runTestSuite(testCases) {
         try {
             // Run tests sequentially
             for (let i = 0; i < testCases.length; i++) {
-                console.log(`Running test ${i + 1}/${testCases.length}: ${testCases[i].name || 'Unnamed Test'}`);
-                
                 try {
                     const result = await runTestWithoutProtection(testCases[i], context);
                     allResults.push(result);
@@ -321,7 +319,7 @@ async function runTestSuite(testCases) {
                     }
                 } catch (error) {
                     const testName = testCases[i].name || `Test ${i + 1}`;
-                    console.log(`Error running test ${testName}:`, error);
+                    console.error(`Error running test ${testName}:`, error);
                     // If a test fails, add error result but continue with other tests
                     allResults.push({
                         testName,
@@ -411,13 +409,10 @@ async function runTestWithoutProtection(testCase, context) {
 }
 
 // Export functions globally for Office.js add-in
-console.log('=== EXPORTING ExcelTestRunner ===');
 window.ExcelTestRunner = {
     runTestSuite: runTestSuite,
     parseCellAddress: parseCellAddress
 };
-console.log('=== ExcelTestRunner EXPORTED ===:', window.ExcelTestRunner);
-console.log('=== SCRIPT COMPLETE ===');
 
 // Also support Node.js/CommonJS for reference
 if (typeof module !== 'undefined' && module.exports) {

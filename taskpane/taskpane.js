@@ -70,7 +70,6 @@ let currentTotalCount = 0;
 function setupEventHandlers() {
     // Prevent duplicate setup
     if (handlersSetup) {
-        console.log('Event handlers already set up, skipping...');
         return;
     }
     
@@ -82,14 +81,7 @@ function setupEventHandlers() {
     const testFileInput = document.getElementById('test-file-input');
     const hidePassedTestsCheckbox = document.getElementById('hide-passed-tests');
     
-    console.log('Setting up event handlers...', {
-        testJsonInput: !!testJsonInput,
-        runTestButton: !!runTestButton,
-        pasteTab: !!pasteTab,
-        fileTab: !!fileTab,
-        fileSelectButton: !!fileSelectButton,
-        testFileInput: !!testFileInput
-    });
+
     
     // Tab switching
     if (pasteTab && fileTab) {
@@ -119,7 +111,6 @@ function setupEventHandlers() {
     // Load & Run test button - combines loading and execution
     if (runTestButton) {
         runTestButton.addEventListener('click', async function(e) {
-            console.log('Load & Run Test button clicked');
             await handleLoadAndRunTest();
         });
     }
@@ -226,21 +217,17 @@ async function handleLoadAndRunTest() {
     clearErrors();
     
     try {
-        console.log('Parsing JSON from textarea...');
         const testData = JSON.parse(jsonText);
-        console.log('JSON parsed successfully', testData);
         
         // Support both single test object and array of tests
         if (Array.isArray(testData)) {
             currentTests = testData;
             currentTest = null;
             displayMultipleTestInfo(testData);
-            console.log('Loaded', testData.length, 'tests');
         } else {
             currentTests = null;
             currentTest = testData;
             displayTestInfo(testData);
-            console.log('Loaded single test:', testData.name);
         }
         
         // Show success feedback
@@ -339,8 +326,6 @@ async function executeTests(testsToRun, buttonElement) {
     updateUIForTestState(true);
     
     try {
-        console.log(`Running test suite of ${testsToRun.length} tests`);
-
         const suiteResult = await window.ExcelTestRunner.runTestSuite(testsToRun);
         
         displayMultipleResults(suiteResult.results, suiteResult.passedCount, suiteResult.totalCount);
