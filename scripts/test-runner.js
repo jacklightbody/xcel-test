@@ -34,17 +34,24 @@ async function snapshotWorksheetState(context, cellAddresses) {
         cellsByWorksheet[parsed.worksheetName].push(parsed.cellAddress);
     }
     
-    // Snapshot each worksheet's cells
+    // Use parallel arrays to preserve proxy object references
+    const fullAddresses = [];
+    const ranges = [];
+    
+    // Step 1: Get all ranges and load their properties
     for (const [worksheetName, cellAddresses] of Object.entries(cellsByWorksheet)) {
         try {
             const worksheet = workbook.worksheets.getItem(worksheetName);
             
-            // For each cell, load both values and formulas
             for (const cellAddress of cellAddresses) {
                 const range = worksheet.getRange(cellAddress);
                 const fullAddress = `${worksheetName}!${cellAddress}`;
                 
-                // Load both values and formulas to capture the full state
+                // Store in parallel arrays - preserves proxy reference
+                fullAddresses.push(fullAddress);
+                ranges.push(range);
+                
+                // Load properties on the range object
                 range.load("values");
                 range.load("formulas");
             }
@@ -53,21 +60,19 @@ async function snapshotWorksheetState(context, cellAddresses) {
         }
     }
     
+    // Step 2: Sync to populate properties
     await context.sync();
     
-    // Extract the actual values and formulas
-    for (const [worksheetName, cellAddresses] of Object.entries(cellsByWorksheet)) {
-        const worksheet = workbook.worksheets.getItem(worksheetName);
+    // Step 3: Extract values using same array indices - preserves reference
+    for (let i = 0; i < ranges.length; i++) {
+        const fullAddress = fullAddresses[i];
+        const range = ranges[i]; // Access range from parallel array
         
-        for (const cellAddress of cellAddresses) {
-            const range = worksheet.getRange(cellAddress);
-            const fullAddress = `${worksheetName}!${cellAddress}`;
-            
-            snapshot[fullAddress] = {
-                value: range.values[0][0],
-                formula: range.formulas[0][0] || null
-            };
-        }
+        // Access properties on the exact range object that was loaded
+        snapshot[fullAddress] = {
+            value: range.values[0][0],
+            formula: range.formulas[0][0] || null
+        };
     }
     
     return snapshot;
@@ -132,43 +137,38 @@ async function readOutputs(context, assertionCells) {
     const workbook = context.workbook;
     const outputs = {};
     
-    // Group by worksheet
-    const cellsByWorksheet = {};
+    // Use parallel arrays to preserve proxy object references
+    const fullAddresses = [];
+    const ranges = [];
+    
+    // Step 1: Get all ranges and load their properties
     for (const cellAddress of assertionCells) {
-        const parsed = parseCellAddress(cellAddress);
-        if (!cellsByWorksheet[parsed.worksheetName]) {
-            cellsByWorksheet[parsed.worksheetName] = [];
-        }
-        cellsByWorksheet[parsed.worksheetName].push({
-            cellAddress: parsed.cellAddress,
-            fullAddress: cellAddress
-        });
-    }
-    
-    // Load values from each worksheet
-    for (const [worksheetName, cellList] of Object.entries(cellsByWorksheet)) {
         try {
-            const worksheet = workbook.worksheets.getItem(worksheetName);
+            const parsed = parseCellAddress(cellAddress);
+            const worksheet = workbook.worksheets.getItem(parsed.worksheetName);
+            const range = worksheet.getRange(parsed.cellAddress);
             
-            for (const cell of cellList) {
-                const range = worksheet.getRange(cell.cellAddress);
-                range.load("values");
-            }
+            // Store in parallel arrays - preserves proxy reference
+            fullAddresses.push(cellAddress);
+            ranges.push(range);
+            
+            // Load properties on the range object
+            range.load("values");
         } catch (error) {
-            throw new Error(`Failed to read output from worksheet "${worksheetName}": ${error.message}`);
+            throw new Error(`Failed to read output from cell "${cellAddress}": ${error.message}`);
         }
     }
     
+    // Step 2: Sync to populate properties
     await context.sync();
     
-    // Extract values
-    for (const [worksheetName, cellList] of Object.entries(cellsByWorksheet)) {
-        const worksheet = workbook.worksheets.getItem(worksheetName);
+    // Step 3: Extract values using same array indices - preserves reference
+    for (let i = 0; i < ranges.length; i++) {
+        const fullAddress = fullAddresses[i];
+        const range = ranges[i]; // Access range from parallel array
         
-        for (const cell of cellList) {
-            const range = worksheet.getRange(cell.cellAddress);
-            outputs[cell.fullAddress] = range.values[0][0];
-        }
+        // Access properties on the exact range object that was loaded
+        outputs[fullAddress] = range.values[0][0];
     }
     
     return outputs;

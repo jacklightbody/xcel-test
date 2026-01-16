@@ -203,15 +203,13 @@ The `manifest.xml` is already configured for `https://localhost:3000`.
 - **Calculation not updating**: The add-in waits 100ms after forcing calculation; complex models may need more time
 - **State not restoring**: Check browser console for restore errors; formulas may need to be restored before values
 
-## Contributing
+## Todo
 
-This is a reference implementation. You can extend it with:
-- Support for multiple test files
-- Test suites (arrays of tests)
-- More assertion types (greater than, less than, etc.)
-- Batch execution of multiple tests
-- Test result export/logging
+- Allow for relative references (i.e. 2 cells to the right of "total income" on sheet 3)
+- UI to help create tests
+- Run tests from files, not pasted in
+- display options (hide passed?)
+- fix icon
+- bundle and deploy
+- easier setup script
 
-## License
-
-This project is provided as-is for reference and educational purposes.
