@@ -4,10 +4,18 @@ An Office.js Excel add-in that allows you to write and run unit tests for Excel 
 
 ## Usage
 ![Demo](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/documentation/example-test-run.gif)
+1. Open the Excel workbook you want to test
+2. Open the add-in task pane (via the ribbon button or Insert > My Add-ins)
+3. Choose your input method:
+   - **Paste JSON**: Copy and paste JSON test content directly
+   - **Load File**: Select a JSON test file from your computer
+4. Review the test inputs and assertions that are displayed
+5. Click "Run Test" to execute
+6. View the results showing which assertions passed or failed
 
 ## Test Format
 
-Test files are JSON files that contain an array of test sets
+Test files are JSON files that contain a list of tests you want to run. Each test has a set of input cells and the values to override to, as well as a set of output cells and their expected values given the inputs.
 
 
 ### Example
@@ -44,19 +52,6 @@ Test files are JSON files that contain an array of test sets
   }
 ]
 ```
-
-## How It Works
-
-For each test, the add-in performs the following steps:
-
-1. **Snapshot State**: Captures current values and formulas for all cells referenced in inputs and assertions
-2. **Apply Inputs**: Sets the input values as specified in the test
-3. **Force Calculation**: Triggers Excel's full calculation to ensure all dependent formulas recalculate
-4. **Read Outputs**: Retrieves the actual calculated values from assertion cells
-5. **Evaluate Assertions**: Compares actual vs expected values (with tolerance for numeric comparisons)
-6. **Restore State**: Restores all original values and formulas, ensuring the workbook is unchanged
-
-This means the unit tests both **preserves state** and **exactly match** the native excel behavior.
 ## Setup
 
 ### Quick Setup (Recommended)
@@ -105,37 +100,20 @@ If the automated setup fails, follow these manual steps:
 ![where to find the add-in](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/documentation/add-add-in.png)
 
 
-The `manifest.xml` is already configured for `https://localhost:3000`.
+## How It Works
 
-**Important**: Office.js add-ins require HTTPS, even for local development. The setup script handles this automatically using mkcert for system-trusted certificates.
+For each test, the add-in performs the following steps:
 
-## Usage
+1. **Snapshot State**: Captures current values and formulas for all cells referenced in inputs and assertions
+2. **Apply Inputs**: Sets the input values as specified in the test
+3. **Force Calculation**: Triggers Excel's full calculation to ensure all dependent formulas recalculate
+4. **Read Outputs**: Retrieves the actual calculated values from assertion cells
+5. **Evaluate Assertions**: Compares actual vs expected values (with tolerance for numeric comparisons)
+6. **Restore State**: Restores all original values and formulas, ensuring the workbook is unchanged
 
-1. Open the Excel workbook you want to test
-2. Open the add-in task pane (via the ribbon button or Insert > My Add-ins)
-3. Choose your input method:
-   - **Paste JSON**: Copy and paste JSON test content directly
-   - **Load File**: Select a JSON test file from your computer
-4. Review the test inputs and assertions that are displayed
-5. Click "Run Test" to execute
-6. View the results showing which assertions passed or failed
+This means the unit tests both **preserves state** and **exactly match** the native excel behavior.
 
-### Loading Test Files
-
-You can load test files in two ways:
-
-**Method 1: Paste JSON**
-- Copy your JSON test content to the clipboard
-- Paste it directly into the textarea
-- Press `Ctrl+Enter` (or `Cmd+Enter` on Mac) to run the test
-
-**Method 2: Load File** (Recommended for larger test files)
-- Click the "Load File" tab
-- Click "Choose File" and select your `.json` test file
-- The filename will be displayed once loaded
-- Click "Run Test" to execute
-
-## File Structure
+## Repo Structure
 
 ```
 /
