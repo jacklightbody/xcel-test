@@ -3,7 +3,7 @@
 An Office.js Excel add-in that allows you to write and run unit tests for Excel workbooks to validate the correctness of a set of formulas you've created.
 
 ## Usage
-![Demo](https://github.com/jacklightbody/xcel-testraw/master/documentation/example-test-run.gif)
+![Demo](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/documentation/example-test-run.gif)
 
 ## Test Format
 
@@ -95,27 +95,7 @@ If the automated setup fails, follow these manual steps:
 
 3. **Start the server**:
    ```bash
-   python3 -c "
-import http.server
-import ssl
-import socketserver
-
-PORT = 3000
-DIRECTORY = '.'
-
-class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=DIRECTORY, **kwargs)
-
-Handler = MyHTTPRequestHandler
-
-with socketserver.TCPServer(('', PORT), Handler) as httpd:
-    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
-    context.load_cert_chain('certs/cert.pem', 'certs/key.pem')
-    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
-    print(f'Serving at https://localhost:{PORT}')
-    httpd.serve_forever()
-"
+   ./start.sh
    ```
 
 4. **Launch Excel**:
