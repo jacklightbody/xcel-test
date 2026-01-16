@@ -1,0 +1,15 @@
+# Certificate files (don't commit these)
+certs/
+*.pem
+*.key
+*.crt
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Excel Unit Test Runner</title>
+    
+    <!-- Office JavaScript API -->
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1.1/hosted/office.js"></script>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" type="text/css" href="taskpane.css" />
+</head>
+<body>
+    <div class="ms-welcome">
+        <header class="ms-welcome__header ms-bgColor-neutralLighter ms-u-fadeIn500">
+            <h1 class="ms-fontSize-su ms-fontWeight-light ms-fontColor-neutralPrimary">Excel Unit Test Runner</h1>
+        </header>
+        <main id="app-body" class="ms-welcome__main ms-u-fadeIn500">
+            <div id="test-section" style="display: block;">
+                <div class="input-container">
+                    <label for="test-json-input" class="input-label">Paste JSON test file content:</label>
+                    <textarea id="test-json-input" class="test-json-textarea" placeholder='Paste JSON here, e.g.:
+[
+  {
+    "name": "Test name",
+    "inputs": { "Sheet!A1": 100 },
+    "assertions": [{ "cell": "Sheet!B1", "equals": 200 }]
+  }
+]'></textarea>
+                    <div class="button-container">
+                        <button id="run-test-button" class="ms-Button ms-Button--primary">
+                            <span class="ms-Button-label">Run Test</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="current-test-info" class="test-info"></div>
+            </div>
+            
+            <div id="results-section" style="display: none;">
+                <h2 class="ms-fontSize-l ms-fontWeight-semilight ms-fontColor-neutralPrimary">Test Results</h2>
+                <div id="results-content"></div>
+            </div>
+            
+            <div id="error-section" style="display: none;">
+                <div class="error-message" id="error-content"></div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Custom JavaScript -->
+    <script type="text/javascript" src="../scripts/test-runner.js"></script>
+    <script type="text/javascript" src="taskpane.js"></script>
+</body>
+</html>
