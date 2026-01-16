@@ -14,9 +14,6 @@
 </head>
 <body>
     <div class="ms-welcome">
-        <header class="ms-welcome__header ms-bgColor-neutralLighter ms-u-fadeIn500">
-            <h1 class="ms-fontSize-su ms-fontWeight-light ms-fontColor-neutralPrimary">Excel Unit Test Runner</h1>
-        </header>
         <main id="app-body" class="ms-welcome__main ms-u-fadeIn500">
             <div id="test-section" style="display: block;">
                 <div class="input-container">
@@ -50,13 +47,14 @@
                     
                     <div class="button-container">
                         <button id="run-test-button" class="ms-Button ms-Button--primary">
-                            <span class="ms-Button-label">Run Test</span>
+                            <span class="ms-Button-label">Run</span>
                         </button>
                     </div>
                 </div>
                 
                 <div id="current-test-info" class="test-info" style="display: none;"> </div>
             </div>
+            
             
             <div id="results-section" style="display: none;">
                 <h2 class="ms-fontSize-l ms-fontWeight-semilight ms-fontColor-neutralPrimary">Test Results</h2>
@@ -65,6 +63,20 @@
             
             <div id="error-section" style="display: none;">
                 <div class="error-message" id="error-content"></div>
+            </div>
+
+            <div id="display-options-container" class="display-options-container">
+                <div class="display-options-header" id="display-options-toggle">
+                    <h3>Display Options</h3>
+                    <span class="toggle-icon" id="toggle-icon">▼</span>
+                </div>
+                
+                <div id="display-options" class="display-options-content" style="display: none;">
+                    <div class="display-option">
+                        <input type="checkbox" id="hide-passed-tests" checked>
+                        <label for="hide-passed-tests">Hide passed tests (default)</label>
+                    </div>
+                </div>
             </div>
         </main>
     </div>

@@ -7,7 +7,7 @@
     },
     "assertions": [
       {
-        "cell": "Sheet1!E7",
+        "cell": "Sheet1!B5",
         "equals": 30000,
         "tolerance": 1
       }

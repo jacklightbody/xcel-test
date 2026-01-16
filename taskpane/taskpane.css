@@ -15,13 +15,6 @@ html, body {
     overflow: hidden;
 }
 
-.ms-welcome__header {
-    padding: 20px;
-    padding-bottom: 30px;
-    padding-top: 100px;
-    flex-shrink: 0;
-}
-
 .ms-welcome__main {
     flex: 1;
     overflow-y: auto;
@@ -290,4 +283,77 @@ html, body {
 .test-summary.fail {
     border-left: 4px solid #d13438;
     color: #d13438;
+}
+
+/* Display Options Styling */
+.display-options-container {
+    margin: 10px 0;
+    border-left: 2px solid #f0f0f0;
+    background: transparent;
+}
+
+.display-options-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    opacity: 0.7;
+}
+
+.display-options-header:hover {
+    opacity: 1;
+}
+
+.display-options-header h3 {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #8a8886;
+    letter-spacing: 0.5px;
+}
+
+.toggle-icon {
+    font-size: 10px;
+    color: #b1b1b1;
+    transition: transform 0.2s ease;
+}
+
+.display-options-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background: transparent;
+}
+
+.display-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.display-option input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
+
+.display-option label {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 400;
+    color: #605e5c;
+    cursor: pointer;
+}
+
+.assertion-summary {
+    margin: 8px 0;
+    padding: 8px;
+    background-color: #e8f5e8;
+    border-radius: 2px;
+    border-left: 3px solid #107c10;
+    font-size: 13px;
+    color: #107c10;
+    font-weight: 500;
 }

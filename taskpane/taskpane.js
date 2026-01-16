@@ -37,6 +37,11 @@ if (document.readyState === 'loading') {
 // Track if handlers are already set up to avoid duplicates
 let handlersSetup = false;
 
+// Store current results to enable filtering
+let currentResults = [];
+let currentPassedCount = 0;
+let currentTotalCount = 0;
+
 function setupEventHandlers() {
     // Prevent duplicate setup
     if (handlersSetup) {
@@ -50,6 +55,7 @@ function setupEventHandlers() {
     const fileTab = document.getElementById('file-tab');
     const fileSelectButton = document.getElementById('file-select-button');
     const testFileInput = document.getElementById('test-file-input');
+    const hidePassedTestsCheckbox = document.getElementById('hide-passed-tests');
     
     console.log('Setting up event handlers...', {
         testJsonInput: !!testJsonInput,
@@ -72,6 +78,17 @@ function setupEventHandlers() {
         testFileInput.addEventListener('change', handleFileSelect);
     }
     
+    // Hide passed tests checkbox
+    if (hidePassedTestsCheckbox) {
+        hidePassedTestsCheckbox.addEventListener('change', filterAndDisplayResults);
+    }
+    
+    // Display options toggle
+    const displayOptionsToggle = document.getElementById('display-options-toggle');
+    if (displayOptionsToggle) {
+        displayOptionsToggle.addEventListener('click', toggleDisplayOptions);
+    }
+    
     // Load & Run test button - combines loading and execution
     if (runTestButton) {
         runTestButton.addEventListener('click', async function(e) {
@@ -91,6 +108,19 @@ function setupEventHandlers() {
     }
     
     handlersSetup = true;
+}
+
+function toggleDisplayOptions() {
+    const displayOptions = document.getElementById('display-options');
+    const toggleIcon = document.getElementById('toggle-icon');
+    
+    if (displayOptions.style.display === 'none' || displayOptions.style.display === '') {
+        displayOptions.style.display = 'block';
+        toggleIcon.textContent = '▲';
+    } else {
+        displayOptions.style.display = 'none';
+        toggleIcon.textContent = '▼';
+    }
 }
 
 function switchInputMethod(method) {
@@ -234,7 +264,7 @@ async function handleLoadAndRunTest() {
     } finally {
         if (runTestButton) {
             runTestButton.disabled = false;
-            runTestButton.querySelector('.ms-Button-label').textContent = 'Load & Run Test';
+            runTestButton.querySelector('.ms-Button-label').textContent = 'Run';
         }
     }
 }
@@ -333,12 +363,41 @@ async function executeTests(testsToRun, buttonElement) {
 
 
 function displayMultipleResults(results, passedCount, totalCount) {
+    // Store current results for filtering
+    currentResults = results;
+    currentPassedCount = passedCount;
+    currentTotalCount = totalCount;
+    
+    // Show display options and filter results
+    filterAndDisplayResults();
+}
+
+function filterAndDisplayResults() {
     const resultsSection = document.getElementById('results-section');
     const resultsContent = document.getElementById('results-content');
+    const displayOptions = document.getElementById('display-options');
+    const hidePassedTestsCheckbox = document.getElementById('hide-passed-tests');
+    const visibleCountSpan = document.getElementById('visible-count');
+    const totalCountSpan = document.getElementById('total-count');
     
-    const allPassed = passedCount === totalCount;
+    // If no results yet, just update the checkbox state
+    if (!currentResults || currentResults.length === 0) {
+        return;
+    }
+    
+    const allPassed = currentPassedCount === currentTotalCount;
     const summaryClass = allPassed ? 'pass' : 'fail';
-    const summaryText = allPassed ? 'ALL PASSED' : `${passedCount}/${totalCount} PASSED`;
+    const summaryText = allPassed ? 'ALL PASSED' : `${currentPassedCount}/${currentTotalCount} PASSED`;
+    
+    // Filter results based on checkbox
+    const hidePassedTests = hidePassedTestsCheckbox && hidePassedTestsCheckbox.checked;
+    let filteredResults = currentResults;
+    let visibleCount = currentResults.length;
+    
+    if (hidePassedTests) {
+        filteredResults = currentResults.filter(result => !result.passed);
+        visibleCount = filteredResults.length;
+    }
     
     let html = `
         <div class="test-summary ${summaryClass}">
@@ -346,44 +405,54 @@ function displayMultipleResults(results, passedCount, totalCount) {
         </div>
     `;
     
-    for (let i = 0; i < results.length; i++) {
-        const result = results[i];
+    // Show filtered results
+    for (let i = 0; i < filteredResults.length; i++) {
+        const result = filteredResults[i];
         const resultClass = result.passed ? 'pass' : 'fail';
         const resultText = result.passed ? 'PASSED' : 'FAILED';
         
+        // For failed tests, always show details
+        // For passed tests (when shown), simplify the display
+        const showFullDetails = !result.passed || !hidePassedTests;
+        
         html += `
             <div class="result-item ${resultClass}" style="margin-top: 15px;">
-                <h4>${i + 1}. ${result.testName} - ${resultText}</h4>
+                <h4>${result.testName} - ${resultText}</h4>
         `;
         
         if (result.error) {
             html += `<div class="error-message" style="margin: 5px 0; padding: 10px;">Error: ${result.error}</div>`;
         }
         
-        for (const assertionResult of result.assertionResults) {
-            const assertionClass = assertionResult.passed ? 'pass' : 'fail';
-            let detailsHtml = '';
-            
-            if (assertionResult.passed) {
-                if (assertionResult.difference !== null) {
-                    detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}, Difference: ${assertionResult.difference}</div>`;
+        if (showFullDetails) {
+            for (const assertionResult of result.assertionResults) {
+                const assertionClass = assertionResult.passed ? 'pass' : 'fail';
+                let detailsHtml = '';
+                
+                if (assertionResult.passed) {
+                    if (assertionResult.difference !== null) {
+                        detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}, Difference: ${assertionResult.difference}</div>`;
+                    } else {
+                        detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}</div>`;
+                    }
                 } else {
-                    detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}</div>`;
+                    if (assertionResult.difference !== null) {
+                        detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}, Difference: ${assertionResult.difference} (tolerance: ${assertionResult.tolerance})</div>`;
+                    } else {
+                        detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}</div>`;
+                    }
                 }
-            } else {
-                if (assertionResult.difference !== null) {
-                    detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}, Difference: ${assertionResult.difference} (tolerance: ${assertionResult.tolerance})</div>`;
-                } else {
-                    detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}</div>`;
-                }
+                
+                html += `
+                    <div class="assertion ${assertionClass}">
+                        <strong>${assertionResult.cell}</strong>
+                        ${detailsHtml}
+                    </div>
+                `;
             }
-            
-            html += `
-                <div class="assertion ${assertionClass}">
-                    <strong>${assertionResult.cell}</strong>
-                    ${detailsHtml}
-                </div>
-            `;
+        } else {
+            // For passed tests when hiding details, just show a summary
+            html += `<div class="assertion-summary">✓ ${result.assertionResults.length} assertions passed</div>`;
         }
         
         html += '</div>';
@@ -391,6 +460,16 @@ function displayMultipleResults(results, passedCount, totalCount) {
     
     resultsContent.innerHTML = html;
     resultsSection.style.display = 'block';
+    
+    // Show display options and update counts
+    if (displayOptions && currentResults.length > 0) {
+        const testCountDisplay = document.querySelector('.test-count-display');
+        if (testCountDisplay) {
+            testCountDisplay.style.display = 'flex';
+        }
+        if (visibleCountSpan) visibleCountSpan.textContent = visibleCount;
+        if (totalCountSpan) totalCountSpan.textContent = currentTotalCount;
+    }
 }
 
 function showError(message) {

@@ -2,6 +2,9 @@
 
 An Office.js Excel add-in that allows you to write and run unit tests for Excel workbooks to validate the correctness of a set of formulas you've created.
 
+## Usage
+![Demo](https://github.com/jacklightbody/xcel-testraw/master/documentation/example-test-run.gif)
+
 ## Test Format
 
 Test files are JSON files that contain an array of test sets
@@ -56,61 +59,75 @@ For each test, the add-in performs the following steps:
 This means the unit tests both **preserves state** and **exactly match** the native excel behavior.
 ## Setup
 
-### Prerequisites
+### Quick Setup (Recommended)
 
-- Excel for Windows, Excel for Mac, or Excel Online
-- A web server to host the add-in files (for local development)
+Run `setup.sh` to automatically install dependencies, generate trusted certificates, and prepare everything:
+```bash
+./setup.sh && ./start.sh
+```
 
-### Installation
+This script will:
+- Install mkcert (if needed) for trusted certificates
+- Generate trusted HTTPS certificates
+- **Auto-install the manifest for Mac Excel users**
+- **Start the server** (via `./start.sh`)
 
-1. **Host the files**: The add-in needs to be served over HTTPS. For local development, you can use:
-   - [Office Add-in CLI](https://github.com/OfficeDev/Office-Addin-TaskPane-SSO)
-   - A local web server with HTTPS (e.g., using `http-server` with SSL)
+After the first initialization, you can call `./start.sh` to start the server.
 
-2. **Sideload the manifest**:
-   - Open Excel
-   - Go to File > Options > Trust Center > Trust Center Settings > Trusted Add-in Catalogs
-   - Add your web server URL
-   - Go to Insert > My Add-ins > Upload My Add-in
-   - Select `manifest.xml`
+### Manual Setup (Fallback)
 
-### Quick Start (Local Development)
+If the automated setup fails, follow these manual steps:
 
-**Important**: Office.js add-ins require HTTPS, even for local development.
-
-#### Option 1: Quick Setup (Recommended - Uses mkcert)
-
-1. Install mkcert (creates trusted certificates):
+1. **Install dependencies**:
    ```bash
-   # macOS
-   brew install mkcert
-   
-   # Windows (with Chocolatey)
-   choco install mkcert
+   # Install mkcert for trusted certificates:
+   # macOS: brew install mkcert
+   # Windows: choco install mkcert
+   # Linux: sudo apt-get install libnss3-tools (then download mkcert)
    ```
 
-2. Install local CA and generate certificate:
+2. **Generate certificates**:
    ```bash
    mkcert -install
    mkdir -p certs
    mkcert -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1 ::1
    ```
 
-3. Install and start http-server:
+3. **Start the server**:
    ```bash
-   npm install -g http-server
-   http-server -p 3000 -S -C certs/cert.pem -K certs/key.pem
+   python3 -c "
+import http.server
+import ssl
+import socketserver
+
+PORT = 3000
+DIRECTORY = '.'
+
+class MyHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=DIRECTORY, **kwargs)
+
+Handler = MyHTTPRequestHandler
+
+with socketserver.TCPServer(('', PORT), Handler) as httpd:
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain('certs/cert.pem', 'certs/key.pem')
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
+    print(f'Serving at https://localhost:{PORT}')
+    httpd.serve_forever()
+"
    ```
 
-Or simply run: `./start-server.sh` (automatically uses mkcert if available)
+4. **Launch Excel**:
+   - **Mac users**: The manifest is auto-installed! Just go to **Inert** → **My Add-ins** and select "Excel Unit Test Runner"
+   - **Other users**: Go to **Insert** → **Add-ins** → **My Add-ins** → **Upload My Add-in** and select `manifest.xml`
 
-4. Sideload the manifest in Excel:
-   - Go to **Insert** → **Add-ins** → **My Add-ins** → **Upload My Add-in**
-   - Select `manifest.xml`
+![where to find the add-in](https://github.com/jacklightbody/xcel-testraw/master/documentation/add-add-in.png)
+
 
 The `manifest.xml` is already configured for `https://localhost:3000`.
 
-**Note**: If you get certificate errors, mkcert is the recommended solution as it creates system-trusted certificates. See [setup-local-server.md](setup-local-server.md) for alternatives and troubleshooting.
+**Important**: Office.js add-ins require HTTPS, even for local development. The setup script handles this automatically using mkcert for system-trusted certificates.
 
 ## Usage
 
@@ -178,10 +195,8 @@ You can load test files in two ways:
 
 - Allow for relative references (i.e. 2 cells to the right of "total income" on sheet 3)
 - UI to help create tests
-- Run tests from files, not pasted in
-- hide verbose logs for passed tests
-- fix icon
-- bundle and deploy
-- easier setup script
+- Bundle and deploy to msft so installation is easy
 - Guard mode to retrigger on save automatically
+  - Also keyboard shortcuts
+- Locking. Prevent (or at least detect) user edits while tests are running
 
