@@ -2,6 +2,8 @@
 
 let currentTest = null;
 let currentTests = null; // Array of tests if multiple tests are loaded
+let currentInputMethod = 'paste'; // 'paste' or 'file'
+let loadedFileName = null;
 
 Office.onReady((info) => {
     if (info.host === Office.HostType.Excel) {
@@ -44,24 +46,44 @@ function setupEventHandlers() {
     
     const testJsonInput = document.getElementById('test-json-input');
     const runTestButton = document.getElementById('run-test-button');
+    const pasteTab = document.getElementById('paste-tab');
+    const fileTab = document.getElementById('file-tab');
+    const fileSelectButton = document.getElementById('file-select-button');
+    const testFileInput = document.getElementById('test-file-input');
     
     console.log('Setting up event handlers...', {
         testJsonInput: !!testJsonInput,
-        runTestButton: !!runTestButton
+        runTestButton: !!runTestButton,
+        pasteTab: !!pasteTab,
+        fileTab: !!fileTab,
+        fileSelectButton: !!fileSelectButton,
+        testFileInput: !!testFileInput
     });
     
+    // Tab switching
+    if (pasteTab && fileTab) {
+        pasteTab.addEventListener('click', () => switchInputMethod('paste'));
+        fileTab.addEventListener('click', () => switchInputMethod('file'));
+    }
+    
+    // File selection
+    if (fileSelectButton && testFileInput) {
+        fileSelectButton.addEventListener('click', () => testFileInput.click());
+        testFileInput.addEventListener('change', handleFileSelect);
+    }
+    
     // Load & Run test button - combines loading and execution
-    if (runTestButton && testJsonInput) {
+    if (runTestButton) {
         runTestButton.addEventListener('click', async function(e) {
             console.log('Load & Run Test button clicked');
             await handleLoadAndRunTest();
         });
     }
     
-    // Also allow Enter+Ctrl/Cmd to load and run test
+    // Also allow Enter+Ctrl/Cmd to load and run test (only for paste method)
     if (testJsonInput) {
         testJsonInput.addEventListener('keydown', async function(e) {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && currentInputMethod === 'paste') {
                 e.preventDefault();
                 await handleLoadAndRunTest();
             }
@@ -69,6 +91,75 @@ function setupEventHandlers() {
     }
     
     handlersSetup = true;
+}
+
+function switchInputMethod(method) {
+    currentInputMethod = method;
+    
+    const pasteTab = document.getElementById('paste-tab');
+    const fileTab = document.getElementById('file-tab');
+    const pasteSection = document.getElementById('paste-input-section');
+    const fileSection = document.getElementById('file-input-section');
+    
+    // Update tab active states
+    if (method === 'paste') {
+        pasteTab.classList.add('active');
+        fileTab.classList.remove('active');
+        pasteSection.style.display = 'block';
+        fileSection.style.display = 'none';
+    } else {
+        fileTab.classList.add('active');
+        pasteTab.classList.remove('active');
+        fileSection.style.display = 'block';
+        pasteSection.style.display = 'none';
+    }
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) {
+        return;
+    }
+    
+    if (!file.name.toLowerCase().endsWith('.json')) {
+        showError('Please select a JSON file');
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        try {
+            const jsonText = e.target.result;
+            const testJsonInput = document.getElementById('test-json-input');
+            const fileNameDisplay = document.getElementById('file-name-display');
+            
+            // Fill the textarea with file content (for consistency with existing logic)
+            testJsonInput.value = jsonText;
+            
+            // Update filename display
+            fileNameDisplay.textContent = file.name;
+            loadedFileName = file.name;
+            
+            // Clear any previous results/errors
+            clearResults();
+            clearErrors();
+            
+            // Show success feedback
+            fileNameDisplay.style.color = '#107c10';
+            setTimeout(() => {
+                fileNameDisplay.style.color = '';
+            }, 1000);
+            
+        } catch (error) {
+            showError(`Failed to read file: ${error.message}`);
+        }
+    };
+    
+    reader.onerror = function() {
+        showError('Failed to read file');
+    };
+    
+    reader.readAsText(file);
 }
 
 async function handleLoadAndRunTest() {
@@ -82,7 +173,11 @@ async function handleLoadAndRunTest() {
     
     const jsonText = testJsonInput.value.trim();
     if (!jsonText) {
-        showError('Please paste or type JSON test content');
+        if (currentInputMethod === 'file') {
+            showError('Please select a JSON test file first');
+        } else {
+            showError('Please paste or type JSON test content');
+        }
         return;
     }
     

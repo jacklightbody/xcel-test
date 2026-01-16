@@ -20,8 +20,14 @@
         <main id="app-body" class="ms-welcome__main ms-u-fadeIn500">
             <div id="test-section" style="display: block;">
                 <div class="input-container">
-                    <label for="test-json-input" class="input-label">Paste JSON test file content:</label>
-                    <textarea id="test-json-input" class="test-json-textarea" placeholder='Paste JSON here, e.g.:
+                    <div class="input-method-tabs">
+                        <button id="paste-tab" class="tab-button active">Paste JSON</button>
+                        <button id="file-tab" class="tab-button">Load File</button>
+                    </div>
+                    
+                    <div id="paste-input-section" class="input-section">
+                        <label for="test-json-input" class="input-label">Paste JSON test file content:</label>
+                        <textarea id="test-json-input" class="test-json-textarea" placeholder='Paste JSON here, e.g.:
 [
   {
     "name": "Test name",
@@ -29,6 +35,19 @@
     "assertions": [{ "cell": "Sheet!B1", "equals": 200 }]
   }
 ]'></textarea>
+                    </div>
+                    
+                    <div id="file-input-section" class="input-section" style="display: none;">
+                        <label for="test-file-input" class="input-label">Select JSON test file:</label>
+                        <div class="file-input-container">
+                            <input type="file" id="test-file-input" accept=".json" style="display: none;">
+                            <button id="file-select-button" class="ms-Button ms-Button--primary file-select-button">
+                                <span class="ms-Button-label">Choose File</span>
+                            </button>
+                            <span id="file-name-display" class="file-name-display">No file selected</span>
+                        </div>
+                    </div>
+                    
                     <div class="button-container">
                         <button id="run-test-button" class="ms-Button ms-Button--primary">
                             <span class="ms-Button-label">Run Test</span>

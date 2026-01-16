@@ -114,6 +114,59 @@ html, body {
     margin: 20px 0;
 }
 
+/* Tab styling */
+.input-method-tabs {
+    display: flex;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #8a8886;
+}
+
+.tab-button {
+    background: none;
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #605e5c;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+    color: #323130;
+    background-color: #f3f2f1;
+}
+
+.tab-button.active {
+    color: #0078d4;
+    border-bottom-color: #0078d4;
+    font-weight: 600;
+}
+
+/* File input styling */
+.file-input-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.file-select-button {
+    flex-shrink: 0;
+}
+
+.file-name-display {
+    font-size: 13px;
+    color: #605e5c;
+    font-style: italic;
+}
+
+.input-section {
+    margin-bottom: 10px;
+}
+
 .input-label {
     display: block;
     margin-bottom: 8px;

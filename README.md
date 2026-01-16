@@ -1,56 +1,11 @@
 # Excel Unit Test Runner
 
-An Office.js Excel add-in that allows you to write and run unit tests for Excel workbooks. The add-in ensures correctness by using Excel's native calculation engine and guarantees safety by automatically snapshotting and restoring workbook state.
-
-## Features
-
-- **State Preservation**: Automatically snapshots workbook state before each test and restores it afterward
-- **Native Excel Calculations**: Uses Excel's built-in calculation engine for accurate results
-- **Flexible Assertions**: Supports numeric comparisons with configurable tolerance
-- **JSON-Based Tests**: Simple JSON format for defining test cases
+An Office.js Excel add-in that allows you to write and run unit tests for Excel workbooks to validate the correctness of a set of formulas you've created.
 
 ## Test Format
 
-Test files are JSON files that can contain either:
-- A **single test object** (for backward compatibility)
-- An **array of test objects** (for multiple tests in one file)
+Test files are JSON files that contain an array of test sets
 
-### Single Test Format
-
-```json
-{
-  "name": "Test name",
-  "inputs": {
-    "SheetName!CellAddress": value,
-    ...
-  },
-  "assertions": [
-    {
-      "cell": "SheetName!CellAddress",
-      "equals": expectedValue,
-      "tolerance": optionalTolerance
-    },
-    ...
-  ]
-}
-```
-
-### Multiple Tests Format
-
-```json
-[
-  {
-    "name": "Test name 1",
-    "inputs": { ... },
-    "assertions": [ ... ]
-  },
-  {
-    "name": "Test name 2",
-    "inputs": { ... },
-    "assertions": [ ... ]
-  }
-]
-```
 
 ### Example
 
@@ -87,8 +42,6 @@ Test files are JSON files that can contain either:
 ]
 ```
 
-When a test file contains multiple tests, they will be executed sequentially and all results will be displayed together.
-
 ## How It Works
 
 For each test, the add-in performs the following steps:
@@ -100,6 +53,7 @@ For each test, the add-in performs the following steps:
 5. **Evaluate Assertions**: Compares actual vs expected values (with tolerance for numeric comparisons)
 6. **Restore State**: Restores all original values and formulas, ensuring the workbook is unchanged
 
+This means the unit tests both **preserves state** and **exactly match** the native excel behavior.
 ## Setup
 
 ### Prerequisites
@@ -162,10 +116,27 @@ The `manifest.xml` is already configured for `https://localhost:3000`.
 
 1. Open the Excel workbook you want to test
 2. Open the add-in task pane (via the ribbon button or Insert > My Add-ins)
-3. Click "Load Test File" and select a JSON test file
-4. Review the test inputs and assertions
+3. Choose your input method:
+   - **Paste JSON**: Copy and paste JSON test content directly
+   - **Load File**: Select a JSON test file from your computer
+4. Review the test inputs and assertions that are displayed
 5. Click "Run Test" to execute
 6. View the results showing which assertions passed or failed
+
+### Loading Test Files
+
+You can load test files in two ways:
+
+**Method 1: Paste JSON**
+- Copy your JSON test content to the clipboard
+- Paste it directly into the textarea
+- Press `Ctrl+Enter` (or `Cmd+Enter` on Mac) to run the test
+
+**Method 2: Load File** (Recommended for larger test files)
+- Click the "Load File" tab
+- Click "Choose File" and select your `.json` test file
+- The filename will be displayed once loaded
+- Click "Run Test" to execute
 
 ## File Structure
 
@@ -208,8 +179,9 @@ The `manifest.xml` is already configured for `https://localhost:3000`.
 - Allow for relative references (i.e. 2 cells to the right of "total income" on sheet 3)
 - UI to help create tests
 - Run tests from files, not pasted in
-- display options (hide passed?)
+- hide verbose logs for passed tests
 - fix icon
 - bundle and deploy
 - easier setup script
+- Guard mode to retrigger on save automatically
 
