@@ -44,8 +44,8 @@ function switchInputMethod(method) {
 }
 
 function initializeUI() {
-    // Test runner should be loaded via script tag in HTML
     setupEventHandlers();
+    setupHotkey();
     
     // Show test section by default
     document.getElementById('test-section').style.display = 'block';
@@ -126,6 +126,17 @@ function setupEventHandlers() {
     }
     
     handlersSetup = true;
+}
+
+function setupHotkey() {
+    // Add Ctrl/Cmd + Enter hotkey to run tests
+    document.addEventListener('keydown', async function(e) {
+        // Check for Ctrl/Cmd + Enter combination
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            await handleLoadAndRunTest();
+        }
+    });
 }
 
 function toggleDisplayOptions() {

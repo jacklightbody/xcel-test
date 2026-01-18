@@ -10,7 +10,7 @@ An Office.js Excel add-in that allows you to write and run unit tests for Excel 
    - **Paste JSON**: Copy and paste JSON test content directly
    - **Load File**: Select a JSON test file from your computer
 4. Review the test inputs and assertions that are displayed
-5. Click "Run Test" to execute
+5. Click "Run Test" to execute (or use **Ctrl+Enter** / **Cmd+Enter** hotkey)
 6. View the results showing which assertions passed or failed
 
 ## Test Format
@@ -155,7 +155,6 @@ This means the unit tests both **preserves state** and **exactly match** the nat
 - UI to help create tests
 - Bundle and deploy to msft so installation is easy
 - Guard mode to retrigger on save automatically
-  - Also keyboard shortcuts
 - Locking. Prevent (or at least detect) user edits while tests are running
 - Snapshot immprovements. Can we snapshot and restore once across every test case rather than one per test?
 - Parallelism or some other method to speed up for large tests suites
