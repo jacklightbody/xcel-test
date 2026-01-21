@@ -1,14 +1,20 @@
 [
   {
-    "name": "Base case cost",
-    "inputs": {
-      "Sheet1!B2": 2,
-      "Sheet1!B3": 60000
-    },
+    "name": "Base case revenue",
+    "inputs": [
+      {
+        "cell": "Assumptions!B2",
+        "value": 3
+      },
+      {
+        "cell": "Assumptions!B3", 
+        "value": 120000
+      }
+    ],
     "assertions": [
       {
-        "cell": "Sheet1!B5",
-        "equals": 30000,
+        "cell": "Outputs!B5",
+        "equals": 40000,
         "tolerance": 1
       }
     ]

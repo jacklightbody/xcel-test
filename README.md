@@ -17,35 +17,135 @@ An Office.js Excel add-in that allows you to write and run unit tests for Excel 
 
 Test files are JSON files that contain a list of tests you want to run. Each test has a set of input cells and the values to override to, as well as a set of output cells and their expected values given the inputs.
 
+### New Schema with Relative References
 
-### Example
+The test format now supports both direct cell references and relative references based on text matching:
 
 ```json
 [
   {
-    "name": "Base case revenue",
-    "inputs": {
-      "Assumptions!B2": 0.05,
-      "Assumptions!B3": 100000
-    },
+    "name": "Mixed Direct and Relative References",
+    "inputs": [
+      {
+        "cell": "Assumptions!B2",
+        "value": 0.05
+      },
+      {
+        "relativeTo": {
+          "sheet": "Assumptions",
+          "referenceCell": "Growth Rate",
+          "colOffset": 0,
+          "rowOffset": 1
+        },
+        "value": 100000
+      },
+      {
+        "relativeTo": {
+          "sheet": "Assumptions",
+          "referenceCell": "Total Income",
+          "colOffset": 2,
+          "rowOffset": -1
+        },
+        "value": 50000
+      }
+    ],
     "assertions": [
       {
         "cell": "Outputs!E12",
         "equals": 1234567,
         "tolerance": 1
+      },
+      {
+        "relativeTo": {
+          "sheet": "Outputs",
+          "referenceCell": "Total Revenue",
+          "colOffset": 1,
+          "rowOffset": 0
+        },
+        "equals": 2469134,
+        "tolerance": 1
+      },
+      {
+        "relativeTo": {
+          "sheet": "Outputs",
+          "referenceColCell": "Profit Margin",
+          "referenceRowCell": "2024"
+        },
+        "equals": 0.15,
+        "tolerance": 0.01
       }
     ]
+  }
+]
+```
+
+### Reference Types
+
+#### 1. Direct Cell References (Legacy)
+```json
+{
+  "cell": "Sheet1!A1",
+  "value": 100
+}
+```
+
+#### 2. Offset References
+Find a cell containing specific text, then offset by columns and rows:
+```json
+{
+  "relativeTo": {
+    "sheet": "Sheet1",
+    "referenceCell": "Total Income",
+    "colOffset": 2,    // 2 columns to the right
+    "rowOffset": -1     // 1 row up
   },
+  "value": 1000
+}
+```
+
+#### 3. Intersection References
+Find the intersection of a column header and row header:
+```json
+{
+  "relativeTo": {
+    "sheet": "Sheet1",
+    "referenceColCell": "Product A",
+    "referenceRowCell": "Q1 2024"
+  },
+  "value": 500
+}
+```
+
+### Validation Rules
+
+- **Mutually Exclusive**: Each input/assertion must have either `cell` OR `relativeTo`, never both
+- **Required Properties**:
+  - Inputs: `value` is required
+  - Assertions: `equals` is required
+- **Validation Timing**: All test cases are validated before any tests run
+- **Error Handling**: Multiple text matches throw clear errors to prevent ambiguity
+
+### Backward Compatibility
+
+Existing test files with direct cell references continue to work unchanged:
+```json
+[
   {
-    "name": "High growth scenario",
-    "inputs": {
-      "Assumptions!B2": 0.10,
-      "Assumptions!B3": 200000
-    },
+    "name": "Base case revenue",
+    "inputs": [
+      {
+        "cell": "Assumptions!B2",
+        "value": 0.05
+      },
+      {
+        "cell": "Assumptions!B3", 
+        "value": 100000
+      }
+    ],
     "assertions": [
       {
         "cell": "Outputs!E12",
-        "equals": 2469134,
+        "equals": 1234567,
         "tolerance": 1
       }
     ]
@@ -146,12 +246,16 @@ This means the unit tests both **preserves state** and **exactly match** the nat
 
 - **"Failed to access worksheet"**: Ensure worksheet names match exactly (case-sensitive)
 - **"Invalid cell address format"**: Cell addresses must be in format "SheetName!A1"
+- **"No cell found containing text"**: Ensure the reference text exists exactly as written in the specified worksheet
+- **"Multiple cells found containing text"**: Reference text must be unique within the worksheet
+- **"Invalid offset"**: Column and row offsets cannot result in negative cell positions
+- **"Validation failed"**: Check that each input/assertion has either `cell` OR `relativeTo`, not both
 - **Calculation not updating**: The add-in waits 100ms after forcing calculation; complex models may need more time
 - **State not restoring**: Check browser console for restore errors; formulas may need to be restored before values
 
 ## Todo
 
-- Allow for relative references (i.e. 2 cells to the right of "total income" on sheet 3)
+- ✅ Allow for relative references (i.e. 2 cells to the right of "total income" on sheet 3)
 - UI to help create tests
 - Bundle and deploy to msft so installation is easy
 - Guard mode to retrigger on save automatically

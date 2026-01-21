@@ -6,6 +6,101 @@
 
 
 /**
+ * Validates a test case according to the new schema
+ */
+function validateTestCase(testCase) {
+    const errors = [];
+    
+    // Validate inputs array
+    if (testCase.inputs) {
+        if (!Array.isArray(testCase.inputs)) {
+            errors.push('Inputs must be an array');
+        } else {
+            testCase.inputs.forEach((input, index) => {
+                const prefix = `Input ${index + 1}`;
+                
+                if (!input.cell && !input.relativeTo) {
+                    errors.push(`${prefix}: must have either 'cell' or 'relativeTo'`);
+                }
+                if (input.cell && input.relativeTo) {
+                    errors.push(`${prefix}: cannot have both 'cell' and 'relativeTo'`);
+                }
+                if (input.value === undefined) {
+                    errors.push(`${prefix}: must have a 'value' property`);
+                }
+            });
+        }
+    }
+    
+    // Validate assertions array
+    if (testCase.assertions) {
+        if (!Array.isArray(testCase.assertions)) {
+            errors.push('Assertions must be an array');
+        } else {
+            testCase.assertions.forEach((assertion, index) => {
+                const prefix = `Assertion ${index + 1}`;
+                
+                if (!assertion.cell && !assertion.relativeTo) {
+                    errors.push(`${prefix}: must have either 'cell' or 'relativeTo'`);
+                }
+                if (assertion.cell && assertion.relativeTo) {
+                    errors.push(`${prefix}: cannot have both 'cell' and 'relativeTo'`);
+                }
+                if (assertion.equals === undefined) {
+                    errors.push(`${prefix}: must have an 'equals' property`);
+                }
+            });
+        }
+    }
+    
+    if (errors.length > 0) {
+        throw new Error(`Validation failed:\n${errors.join('\n')}`);
+    }
+}
+
+/**
+ * Resolves all relative references in a test case to absolute cell addresses
+ */
+async function resolveTestCaseReferences(testCase, workbook, context) {
+    const resolvedTestCase = {
+        name: testCase.name,
+        inputs: {},
+        assertions: []
+    };
+    
+    // Resolve input references
+    if (testCase.inputs) {
+        for (const input of testCase.inputs) {
+            let cellAddress;
+            
+            // Use the new unified resolver
+            cellAddress = await window.CellResolver.resolveCell(input, workbook, context);
+            
+            resolvedTestCase.inputs[cellAddress] = input.value;
+        }
+    }
+    
+    // Resolve assertion references
+    if (testCase.assertions) {
+        for (const assertion of testCase.assertions) {
+            let cellAddress;
+            
+            // Use the new unified resolver
+            cellAddress = await window.CellResolver.resolveCell(assertion, workbook, context);
+            
+            resolvedTestCase.assertions.push({
+                cell: cellAddress,
+                equals: assertion.equals,
+                tolerance: assertion.tolerance,
+                message: assertion.message
+            });
+        }
+    }
+    
+    return resolvedTestCase;
+}
+
+/**
  * Parses a cell address like "Assumptions!B2" into {worksheetName, cellAddress}
  */
 function parseCellAddress(fullAddress) {
@@ -273,26 +368,102 @@ async function restoreState(context, snapshot) {
 }
 
 /**
+ * Validate all test cases before running any of them
+ * @param {Array} testCases - Array of test cases
+ * @returns {Array} - Array of validation results
+ */
+function validateAllTestCases(testCases) {
+    const validationResults = [];
+    
+    for (let i = 0; i < testCases.length; i++) {
+        const testCase = testCases[i];
+        const testName = testCase.name || `Test ${i + 1}`;
+        
+        try {
+            validateTestCase(testCase);
+            validationResults.push({
+                index: i,
+                testName,
+                valid: true,
+                error: null
+            });
+        } catch (error) {
+            validationResults.push({
+                index: i,
+                testName,
+                valid: false,
+                error: error.message
+            });
+        }
+    }
+    
+    return validationResults;
+}
+
+/**
  * Public function to run multiple tests with suite-level locking
  */
 async function runTestSuite(testCases) {
     return Excel.run(async (context) => {
-        // Collect all cell addresses for snapshot
+        const workbook = context.workbook;
+        
+        // First validate all test cases before running any of them
+        const validationResults = validateAllTestCases(testCases);
+        const hasValidationErrors = validationResults.some(result => !result.valid);
+        
+        if (hasValidationErrors) {
+            // If any validation fails, return error results for invalid tests
+            const errorResults = validationResults.map(result => ({
+                testName: result.testName,
+                passed: false,
+                assertionResults: [],
+                error: result.error
+            }));
+            
+            return {
+                results: errorResults,
+                passedCount: 0,
+                totalCount: testCases.length
+            };
+        }
+        
+        // All tests are valid, proceed with resolution and execution
+        const resolvedTestCases = [];
         const allCellAddresses = new Set();
         
-        for (const testCase of testCases) {
-            // Add input cells
-            if (testCase.inputs) {
-                for (const cellAddress of Object.keys(testCase.inputs)) {
-                    allCellAddresses.add(cellAddress);
-                }
-            }
+        for (let i = 0; i < testCases.length; i++) {
+            const testCase = testCases[i];
+            const testName = testCase.name || `Test ${i + 1}`;
             
-            // Add assertion cells
-            if (testCase.assertions) {
-                for (const assertion of testCase.assertions) {
-                    allCellAddresses.add(assertion.cell);
+            try {
+                // Resolve all relative references
+                const resolvedTestCase = await resolveTestCaseReferences(testCase, workbook, context);
+                resolvedTestCases.push(resolvedTestCase);
+                
+                // Collect all cell addresses for snapshot
+                // Add input cells
+                if (resolvedTestCase.inputs) {
+                    for (const cellAddress of Object.keys(resolvedTestCase.inputs)) {
+                        allCellAddresses.add(cellAddress);
+                    }
                 }
+                
+                // Add assertion cells
+                if (resolvedTestCase.assertions) {
+                    for (const assertion of resolvedTestCase.assertions) {
+                        allCellAddresses.add(assertion.cell);
+                    }
+                }
+                
+            } catch (error) {
+                console.error(`Error resolving test ${testName}:`, error);
+                // Add error result but continue with other tests
+                resolvedTestCases.push({
+                    name: testName,
+                    passed: false,
+                    assertionResults: [],
+                    error: error.message
+                });
             }
         }
         
@@ -300,7 +471,9 @@ async function runTestSuite(testCases) {
         let snapshot = null;
         try {
             const cellAddressArray = Array.from(allCellAddresses);
-            snapshot = await snapshotWorksheetState(context, cellAddressArray);
+            if (cellAddressArray.length > 0) {
+                snapshot = await snapshotWorksheetState(context, cellAddressArray);
+            }
         } catch (error) {
             console.error(`Warning: Failed to create suite-level snapshot:`, error);
         }
@@ -310,15 +483,23 @@ async function runTestSuite(testCases) {
         
         try {
             // Run tests sequentially
-            for (let i = 0; i < testCases.length; i++) {
+            for (let i = 0; i < resolvedTestCases.length; i++) {
+                const resolvedTestCase = resolvedTestCases[i];
+                
+                // If this test already has an error, add it to results and skip
+                if (resolvedTestCase.error) {
+                    allResults.push(resolvedTestCase);
+                    continue;
+                }
+                
                 try {
-                    const result = await runTestWithoutProtection(testCases[i], context);
+                    const result = await runTestWithoutProtection(resolvedTestCase, context);
                     allResults.push(result);
                     if (result.passed) {
                         passedCount++;
                     }
                 } catch (error) {
-                    const testName = testCases[i].name || `Test ${i + 1}`;
+                    const testName = resolvedTestCase.name || `Test ${i + 1}`;
                     console.error(`Error running test ${testName}:`, error);
                     // If a test fails, add error result but continue with other tests
                     allResults.push({

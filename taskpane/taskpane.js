@@ -123,6 +123,11 @@ function setupEventHandlers() {
                 await handleLoadAndRunTest();
             }
         });
+        
+        // Add real-time validation feedback
+        testJsonInput.addEventListener('input', function(e) {
+            validateJSONInput(e.target.value);
+        });
     }
     
     handlersSetup = true;
@@ -228,7 +233,14 @@ async function handleLoadAndRunTest() {
     clearErrors();
     
     try {
-        const testData = JSON.parse(jsonText);
+        // Fix common quote issues before parsing
+        const cleanJsonText = jsonText
+            .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')  // Replace smart quotes
+            .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")  // Replace smart single quotes
+            .replace(/\u00A0/g, " ")  // Replace non-breaking spaces
+            .trim();
+        
+        const testData = JSON.parse(cleanJsonText);
         
         // Support both single test object and array of tests
         if (Array.isArray(testData)) {
@@ -259,7 +271,13 @@ async function handleLoadAndRunTest() {
         }, 1000);
     } catch (error) {
         console.error('Error parsing or running test:', error);
-        showError(`Failed to parse JSON: ${error.message}`);
+        let errorMessage = `Failed to parse JSON: ${error.message}`;
+        
+        if (error instanceof SyntaxError) {
+            errorMessage += '\n\nCommon issues:\n• Replace smart quotes ("") with regular quotes (")\n• Check for missing commas\n• Verify brackets and braces are balanced';
+        }
+        
+        showError(errorMessage);
         testJsonInput.style.borderColor = '#d13438';
         setTimeout(function() {
             testJsonInput.style.borderColor = '';
@@ -280,8 +298,25 @@ function displayTestInfo(testData) {
     let inputsHtml = '';
     if (testData.inputs) {
         inputsHtml = '<p><strong>Inputs:</strong></p><ul>';
-        for (const [cell, value] of Object.entries(testData.inputs)) {
-            inputsHtml += `<li>${cell} = ${value}</li>`;
+        for (const input of testData.inputs) {
+            let locationInfo;
+            if (window.CellResolver && window.CellResolver.createLocationString) {
+                locationInfo = window.CellResolver.createLocationString(input);
+            } else {
+                // Fallback: create location string manually
+                if (input.cell) {
+                    locationInfo = input.cell;
+                } else if (input.relativeTo) {
+                    if (input.relativeTo.referenceCell) {
+                        locationInfo = `${input.relativeTo.referenceCell}+(${input.relativeTo.colOffset},${input.relativeTo.rowOffset})`;
+                    } else {
+                        locationInfo = `${input.relativeTo.referenceColCell}×${input.relativeTo.referenceRowCell}`;
+                    }
+                } else {
+                    locationInfo = 'Unknown location';
+                }
+            }
+            inputsHtml += `<li>${locationInfo} = ${input.value}</li>`;
         }
         inputsHtml += '</ul>';
     }
@@ -291,7 +326,24 @@ function displayTestInfo(testData) {
         assertionsHtml = '<p><strong>Assertions:</strong></p><ul>';
         for (const assertion of testData.assertions) {
             const tolerance = assertion.tolerance !== undefined ? ` (tolerance: ${assertion.tolerance})` : '';
-            assertionsHtml += `<li>${assertion.cell} should equal ${assertion.equals}${tolerance}</li>`;
+            let locationInfo;
+            if (window.CellResolver && window.CellResolver.createLocationString) {
+                locationInfo = window.CellResolver.createLocationString(assertion);
+            } else {
+                // Fallback: create location string manually
+                if (assertion.cell) {
+                    locationInfo = assertion.cell;
+                } else if (assertion.relativeTo) {
+                    if (assertion.relativeTo.referenceCell) {
+                        locationInfo = `${assertion.relativeTo.referenceCell}+(${assertion.relativeTo.colOffset},${assertion.relativeTo.rowOffset})`;
+                    } else {
+                        locationInfo = `${assertion.relativeTo.referenceColCell}×${assertion.relativeTo.referenceRowCell}`;
+                    }
+                } else {
+                    locationInfo = 'Unknown location';
+                }
+            }
+            assertionsHtml += `<li>${locationInfo} should equal ${assertion.equals}${tolerance}</li>`;
         }
         assertionsHtml += '</ul>';
     }
@@ -313,9 +365,28 @@ function displayMultipleTestInfo(tests) {
         html += `<div style="margin: 15px 0; padding: 10px; border-left: 3px solid #0078d4; background-color: #f3f2f1;">`;
         html += `<strong>${i + 1}. ${test.name || 'Unnamed Test'}</strong>`;
         
-        if (test.inputs && Object.keys(test.inputs).length > 0) {
+        if (test.inputs && test.inputs.length > 0) {
             html += '<p style="margin: 5px 0;"><small><strong>Inputs:</strong> ';
-            const inputs = Object.entries(test.inputs).map(([cell, value]) => `${cell}=${value}`).join(', ');
+            const inputs = test.inputs.map(input => {
+                let locationInfo;
+                if (window.CellResolver && window.CellResolver.createLocationString) {
+                    locationInfo = window.CellResolver.createLocationString(input);
+                } else {
+                    // Fallback: create location string manually
+                    if (input.cell) {
+                        locationInfo = input.cell;
+                    } else if (input.relativeTo) {
+                        if (input.relativeTo.referenceCell) {
+                            locationInfo = `${input.relativeTo.referenceCell}+(${input.relativeTo.colOffset},${input.relativeTo.rowOffset})`;
+                        } else {
+                            locationInfo = `${input.relativeTo.referenceColCell}×${input.relativeTo.referenceRowCell}`;
+                        }
+                    } else {
+                        locationInfo = 'Unknown location';
+                    }
+                }
+                return `${locationInfo}=${input.value}`;
+            }).join(', ');
             html += inputs;
             html += '</small></p>';
         }
@@ -475,6 +546,32 @@ function clearResults() {
 function clearErrors() {
     document.getElementById('error-section').style.display = 'none';
     document.getElementById('error-content').textContent = '';
+}
+
+/**
+ * Validate JSON input and provide visual feedback
+ */
+function validateJSONInput(jsonText) {
+    const testJsonInput = document.getElementById('test-json-input');
+    
+    if (!jsonText.trim()) {
+        testJsonInput.style.borderColor = '';
+        return;
+    }
+    
+    try {
+        // Fix common quote issues before parsing
+        const cleanJsonText = jsonText
+            .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')  // Replace smart quotes
+            .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")  // Replace smart single quotes
+            .replace(/\u00A0/g, " ")  // Replace non-breaking spaces
+            .trim();
+        
+        JSON.parse(cleanJsonText);
+        testJsonInput.style.borderColor = '#107c10';  // Green for valid
+    } catch (error) {
+        testJsonInput.style.borderColor = '#d13438';  // Red for invalid
+    }
 }
 
 function updateUIForTestState(running) {

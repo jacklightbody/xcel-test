@@ -1,0 +1,157 @@
+[
+  {
+    "name": "Mixed Direct and Relative References",
+    "inputs": [
+      {
+        "cell": "Assumptions!B2",
+        "value": 0.05
+      },
+      {
+        "relativeTo": {
+          "sheet": "Assumptions",
+          "referenceCell": "Growth Rate",
+          "colOffset": 0,
+          "rowOffset": 1
+        },
+        "value": 100000
+      },
+      {
+        "relativeTo": {
+          "sheet": "Assumptions",
+          "referenceCell": "Total Income",
+          "colOffset": 2,
+          "rowOffset": -1
+        },
+        "value": 50000
+      }
+    ],
+    "assertions": [
+      {
+        "cell": "Outputs!E12",
+        "equals": 1234567,
+        "tolerance": 1
+      },
+      {
+        "relativeTo": {
+          "sheet": "Outputs",
+          "referenceCell": "Total Revenue",
+          "colOffset": 1,
+          "rowOffset": 0
+        },
+        "equals": 2469134,
+        "tolerance": 1
+      },
+      {
+        "relativeTo": {
+          "sheet": "Outputs",
+          "referenceColCell": "Profit Margin",
+          "referenceRowCell": "2024"
+        },
+        "equals": 0.15,
+        "tolerance": 0.01
+      }
+    ]
+  },
+  {
+    "name": "Offset Reference Only Test",
+    "inputs": [
+      {
+        "relativeTo": {
+          "sheet": "Data",
+          "referenceCell": "Revenue",
+          "colOffset": 1,
+          "rowOffset": 0
+        },
+        "value": 1000
+      },
+      {
+        "relativeTo": {
+          "sheet": "Data",
+          "referenceCell": "Revenue",
+          "colOffset": 2,
+          "rowOffset": 0
+        },
+        "value": 2000
+      }
+    ],
+    "assertions": [
+      {
+        "relativeTo": {
+          "sheet": "Data",
+          "referenceCell": "Revenue",
+          "colOffset": 3,
+          "rowOffset": 1
+        },
+        "equals": 3000,
+        "tolerance": 0.1
+      }
+    ]
+  },
+  {
+    "name": "Intersection Reference Test",
+    "inputs": [
+      {
+        "relativeTo": {
+          "sheet": "Financials",
+          "referenceColCell": "Product A",
+          "referenceRowCell": "Q1 2024"
+        },
+        "value": 500
+      },
+      {
+        "relativeTo": {
+          "sheet": "Financials",
+          "referenceColCell": "Product B",
+          "referenceRowCell": "Q1 2024"
+        },
+        "value": 750
+      }
+    ],
+    "assertions": [
+      {
+        "relativeTo": {
+          "sheet": "Financials",
+          "referenceColCell": "Product A",
+          "referenceRowCell": "Total"
+        },
+        "equals": 2000,
+        "tolerance": 1
+      },
+      {
+        "relativeTo": {
+          "sheet": "Financials",
+          "referenceColCell": "Product B",
+          "referenceRowCell": "Total"
+        },
+        "equals": 3000,
+        "tolerance": 1
+      }
+    ]
+  },
+  {
+    "name": "Negative Offset Test",
+    "inputs": [
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceCell": "Total",
+          "colOffset": -1,
+          "rowOffset": -2
+        },
+        "value": 100
+      }
+    ],
+    "assertions": [
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceCell": "Total",
+          "colOffset": 1,
+          "rowOffset": 2
+        },
+        "equals": 200,
+        "tolerance": 0.1
+      }
+    ]
+  }
+]

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relative References Test Suite</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #0078d4;
+        }
+        .passed {
+            border-left-color: #107c10;
+            background-color: #f0f9f0;
+        }
+        .failed {
+            border-left-color: #d13438;
+            background-color: #fef2f2;
+        }
+        .error {
+            color: #d13438;
+            font-weight: bold;
+        }
+        .success {
+            color: #107c10;
+            font-weight: bold;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            overflow-x: auto;
+            border-radius: 3px;
+        }
+        button {
+            background-color: #0078d4;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #106ebe;
+        }
+        .test-results {
+            margin-top: 20px;
+        }
+        .summary {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e3f2fd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Excel Unit Test Runner - Relative References Test Suite</h1>
+    
+    <div class="test-section">
+        <h2>Cell Resolver Unit Tests</h2>
+        <p>Tests for the cell resolver functions that don't require Excel API access.</p>
+        
+        <button onclick="runUnitTests()">Run Unit Tests</button>
+        <button onclick="clearUnitResults()">Clear Results</button>
+        
+        <div id="unit-test-results" class="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>JSON Schema Validation Tests</h2>
+        <p>Tests for JSON schema validation logic.</p>
+        
+        <button onclick="runValidationTests()">Run Validation Tests</button>
+        <button onclick="clearValidationResults()">Clear Results</button>
+        
+        <div id="validation-test-results" class="test-results"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Example Test Cases</h2>
+        <p>Sample test cases demonstrating the new relative reference functionality.</p>
+        
+        <h3>Complete Example</h3>
+        <pre id="complete-example">[
+  {
+    "name": "Relative Reference Example",
+    "inputs": [
+      {
+        "cell": "Sheet1!B2",
+        "value": 0.05
+      },
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceCell": "Total Income",
+          "colOffset": 2,
+          "rowOffset": -1
+        },
+        "value": 100000
+      }
+    ],
+    "assertions": [
+      {
+        "cell": "Sheet1!E12",
+        "equals": 1234567,
+        "tolerance": 1
+      },
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceColCell": "Total Income",
+          "referenceRowCell": "Last fiscal year"
+        },
+        "equals": 2469134,
+        "tolerance": 1
+      }
+    ]
+  }
+]</pre>
+
+        <h3>Offset Reference Only</h3>
+        <pre id="offset-example">[
+  {
+    "name": "Offset Test",
+    "inputs": [
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceCell": "Revenue",
+          "colOffset": 1,
+          "rowOffset": 0
+        },
+        "value": 1000
+      }
+    ],
+    "assertions": [
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceCell": "Revenue",
+          "colOffset": 2,
+          "rowOffset": 1
+        },
+        "equals": 2000
+      }
+    ]
+  }
+]</pre>
+
+        <h3>Intersection Reference Only</h3>
+        <pre id="intersection-example">[
+  {
+    "name": "Intersection Test",
+    "inputs": [
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceColCell": "Product A",
+          "referenceRowCell": "Q1 2024"
+        },
+        "value": 500
+      }
+    ],
+    "assertions": [
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceColCell": "Product A",
+          "referenceRowCell": "Total"
+        },
+        "equals": 2000
+      }
+    ]
+  }
+]</pre>
+
+        <h3>Invalid Schema Examples</h3>
+        <pre id="invalid-example">[
+  {
+    "name": "Invalid - Both cell and relativeTo",
+    "inputs": [
+      {
+        "cell": "Sheet1!A1",
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceCell": "Revenue",
+          "colOffset": 1,
+          "rowOffset": 0
+        },
+        "value": 1000
+      }
+    ],
+    "assertions": []
+  },
+  {
+    "name": "Invalid - Neither cell nor relativeTo",
+    "inputs": [
+      {
+        "value": 1000
+      }
+    ],
+    "assertions": []
+  }
+]</pre>
+    </div>
+
+    <!-- Include the cell resolver for testing -->
+    <script src="../scripts/cell-resolver.js"></script>
+    
+    <script>
+        // Mock test runner validation function for testing
+        function validateTestCase(testCase) {
+            const errors = [];
+            
+            if (testCase.inputs) {
+                if (!Array.isArray(testCase.inputs)) {
+                    errors.push('Inputs must be an array');
+                } else {
+                    testCase.inputs.forEach((input, index) => {
+                        const prefix = `Input ${index + 1}`;
+                        
+                        if (!input.cell && !input.relativeTo) {
+                            errors.push(`${prefix}: must have either 'cell' or 'relativeTo'`);
+                        }
+                        if (input.cell && input.relativeTo) {
+                            errors.push(`${prefix}: cannot have both 'cell' and 'relativeTo'`);
+                        }
+                        if (input.value === undefined) {
+                            errors.push(`${prefix}: must have a 'value' property`);
+                        }
+                    });
+                }
+            }
+            
+            if (testCase.assertions) {
+                if (!Array.isArray(testCase.assertions)) {
+                    errors.push('Assertions must be an array');
+                } else {
+                    testCase.assertions.forEach((assertion, index) => {
+                        const prefix = `Assertion ${index + 1}`;
+                        
+                        if (!assertion.cell && !assertion.relativeTo) {
+                            errors.push(`${prefix}: must have either 'cell' or 'relativeTo'`);
+                        }
+                        if (assertion.cell && assertion.relativeTo) {
+                            errors.push(`${prefix}: cannot have both 'cell' and 'relativeTo'`);
+                        }
+                        if (assertion.equals === undefined) {
+                            errors.push(`${prefix}: must have an 'equals' property`);
+                        }
+                    });
+                }
+            }
+            
+            if (errors.length > 0) {
+                throw new Error(`Validation failed:\n${errors.join('\n')}`);
+            }
+        }
+
+        function runUnitTests() {
+            const results = document.getElementById('unit-test-results');
+            results.innerHTML = '<div class="summary">Running unit tests...</div>';
+            
+            const tests = [
+                {
+                    name: 'Column Letter to Number - A',
+                    test: () => {
+                        const result = window.CellResolver.columnLetterToNumber('A');
+                        return result === 1;
+                    }
+                },
+                {
+                    name: 'Column Letter to Number - Z',
+                    test: () => {
+                        const result = window.CellResolver.columnLetterToNumber('Z');
+                        return result === 26;
+                    }
+                },
+                {
+                    name: 'Column Letter to Number - AA',
+                    test: () => {
+                        const result = window.CellResolver.columnLetterToNumber('AA');
+                        return result === 27;
+                    }
+                },
+                {
+                    name: 'Column Letter to Number - AZ',
+                    test: () => {
+                        const result = window.CellResolver.columnLetterToNumber('AZ');
+                        return result === 52;
+                    }
+                },
+                {
+                    name: 'Column Number to Letter - 1',
+                    test: () => {
+                        const result = window.CellResolver.columnNumberToLetter(1);
+                        return result === 'A';
+                    }
+                },
+                {
+                    name: 'Column Number to Letter - 26',
+                    test: () => {
+                        const result = window.CellResolver.columnNumberToLetter(26);
+                        return result === 'Z';
+                    }
+                },
+                {
+                    name: 'Column Number to Letter - 27',
+                    test: () => {
+                        const result = window.CellResolver.columnNumberToLetter(27);
+                        return result === 'AA';
+                    }
+                },
+                {
+                    name: 'Column Number to Letter - 52',
+                    test: () => {
+                        const result = window.CellResolver.columnNumberToLetter(52);
+                        return result === 'AZ';
+                    }
+                },
+                {
+                    name: 'Column Letter to Number - BA',
+                    test: () => {
+                        const result = window.CellResolver.columnLetterToNumber('BA');
+                        return result === 53;
+                    }
+                },
+                {
+                    name: 'Column Number to Letter - 53',
+                    test: () => {
+                        const result = window.CellResolver.columnNumberToLetter(53);
+                        return result === 'BA';
+                    }
+                },
+                {
+                    name: 'Column Letter to Number - ZZ',
+                    test: () => {
+                        const result = window.CellResolver.columnLetterToNumber('ZZ');
+                        return result === 702;
+                    }
+                },
+                {
+                    name: 'Column Number to Letter - 702',
+                    test: () => {
+                        const result = window.CellResolver.columnNumberToLetter(702);
+                        return result === 'ZZ';
+                    }
+                },
+                {
+                    name: 'Column Letter to Number - AAA',
+                    test: () => {
+                        const result = window.CellResolver.columnLetterToNumber('AAA');
+                        return result === 703;
+                    }
+                },
+                {
+                    name: 'Column Number to Letter - 703',
+                    test: () => {
+                        const result = window.CellResolver.columnNumberToLetter(703);
+                        return result === 'AAA';
+                    }
+                },
+                {
+                    name: 'Parse Cell Address - Valid',
+                    test: () => {
+                        const result = window.CellResolver.parseCellAddress('Sheet1!A1');
+                        return result.worksheetName === 'Sheet1' && result.cellAddress === 'A1';
+                    }
+                },
+                {
+                    name: 'Parse Cell Address - Invalid',
+                    test: () => {
+                        try {
+                            window.CellResolver.parseCellAddress('InvalidAddress');
+                            return false; // Should throw error
+                        } catch (error) {
+                            return error.message.includes('Invalid cell address format');
+                        }
+                    }
+                },
+                {
+                    name: 'Get Offset Cell - Positive Offset',
+                    test: () => {
+                        const result = window.CellResolver.getOffsetCell('Sheet1!B2', 2, 3);
+                        return result === 'Sheet1!D5';
+                    }
+                },
+                {
+                    name: 'Get Offset Cell - Negative Offset',
+                    test: () => {
+                        const result = window.CellResolver.getOffsetCell('Sheet1!D5', -2, -3);
+                        return result === 'Sheet1!B2';
+                    }
+                },
+                {
+                    name: 'Get Offset Cell - Invalid Offset',
+                    test: () => {
+                        try {
+                            window.CellResolver.getOffsetCell('Sheet1!A1', -1, 0);
+                            return false; // Should throw error
+                        } catch (error) {
+                            return error.message.includes('Invalid offset');
+                        }
+                    }
+                }
+            ];
+            
+            let passed = 0;
+            let failed = 0;
+            let html = '<div class="summary">';
+            
+            tests.forEach(test => {
+                try {
+                    const testResult = test.test();
+                    if (testResult) {
+                        passed++;
+                        html += `<div class="test-case passed"><span class="success">✓ PASS:</span> ${test.name}</div>`;
+                    } else {
+                        failed++;
+                        html += `<div class="test-case failed"><span class="error">✗ FAIL:</span> ${test.name}</div>`;
+                    }
+                } catch (error) {
+                    failed++;
+                    html += `<div class="test-case failed"><span class="error">✗ ERROR:</span> ${test.name} - ${error.message}</div>`;
+                }
+            });
+            
+            html += `</div><div class="summary">Unit Tests Complete: ${passed} passed, ${failed} failed</div>`;
+            results.innerHTML = html;
+        }
+
+        function runValidationTests() {
+            const results = document.getElementById('validation-test-results');
+            results.innerHTML = '<div class="summary">Running validation tests...</div>';
+            
+            const tests = [
+                {
+                    name: 'Valid Test Case - All Properties',
+                    testCase: {
+                        name: "Valid Test",
+                        inputs: [
+                            { cell: "Sheet1!A1", value: 100 },
+                            {
+                                relativeTo: {
+                                    sheet: "Sheet1",
+                                    referenceCell: "Total",
+                                    colOffset: 1,
+                                    rowOffset: 0
+                                },
+                                value: 200
+                            }
+                        ],
+                        assertions: [
+                            { cell: "Sheet1!B1", equals: 300 },
+                            {
+                                relativeTo: {
+                                    sheet: "Sheet1",
+                                    referenceColCell: "Revenue",
+                                    referenceRowCell: "Q1"
+                                },
+                                equals: 400
+                            }
+                        ]
+                    },
+                    shouldPass: true
+                },
+                {
+                    name: 'Valid Test Case - Minimal Properties',
+                    testCase: {
+                        name: "Minimal Test",
+                        inputs: [],
+                        assertions: []
+                    },
+                    shouldPass: true
+                },
+                {
+                    name: 'Invalid Test Case - Input has both cell and relativeTo',
+                    testCase: {
+                        name: "Invalid Input",
+                        inputs: [
+                            {
+                                cell: "Sheet1!A1",
+                                relativeTo: {
+                                    sheet: "Sheet1",
+                                    referenceCell: "Total",
+                                    colOffset: 1,
+                                    rowOffset: 0
+                                },
+                                value: 100
+                            }
+                        ],
+                        assertions: []
+                    },
+                    shouldPass: false
+                },
+                {
+                    name: 'Invalid Test Case - Input has neither cell nor relativeTo',
+                    testCase: {
+                        name: "Invalid Input 2",
+                        inputs: [
+                            {
+                                value: 100
+                            }
+                        ],
+                        assertions: []
+                    },
+                    shouldPass: false
+                },
+                {
+                    name: 'Invalid Test Case - Input missing value',
+                    testCase: {
+                        name: "Missing Value",
+                        inputs: [
+                            {
+                                cell: "Sheet1!A1"
+                            }
+                        ],
+                        assertions: []
+                    },
+                    shouldPass: false
+                },
+                {
+                    name: 'Invalid Test Case - Assertion has both cell and relativeTo',
+                    testCase: {
+                        name: "Invalid Assertion",
+                        inputs: [],
+                        assertions: [
+                            {
+                                cell: "Sheet1!A1",
+                                relativeTo: {
+                                    sheet: "Sheet1",
+                                    referenceCell: "Total",
+                                    colOffset: 1,
+                                    rowOffset: 0
+                                },
+                                equals: 100
+                            }
+                        ]
+                    },
+                    shouldPass: false
+                },
+                {
+                    name: 'Invalid Test Case - Assertion missing equals',
+                    testCase: {
+                        name: "Missing Equals",
+                        inputs: [],
+                        assertions: [
+                            {
+                                cell: "Sheet1!A1"
+                            }
+                        ]
+                    },
+                    shouldPass: false
+                }
+            ];
+            
+            let passed = 0;
+            let failed = 0;
+            let html = '<div class="summary">';
+            
+            tests.forEach(test => {
+                try {
+                    validateTestCase(test.testCase);
+                    
+                    if (test.shouldPass) {
+                        passed++;
+                        html += `<div class="test-case passed"><span class="success">✓ PASS:</span> ${test.name}</div>`;
+                    } else {
+                        failed++;
+                        html += `<div class="test-case failed"><span class="error">✗ FAIL:</span> ${test.name} - Expected validation to fail</div>`;
+                    }
+                } catch (error) {
+                    if (!test.shouldPass) {
+                        passed++;
+                        html += `<div class="test-case passed"><span class="success">✓ PASS:</span> ${test.name} - Correctly rejected: ${error.message}</div>`;
+                    } else {
+                        failed++;
+                        html += `<div class="test-case failed"><span class="error">✗ FAIL:</span> ${test.name} - Unexpected error: ${error.message}</div>`;
+                    }
+                }
+            });
+            
+            html += `</div><div class="summary">Validation Tests Complete: ${passed} passed, ${failed} failed</div>`;
+            results.innerHTML = html;
+        }
+
+        function clearUnitResults() {
+            document.getElementById('unit-test-results').innerHTML = '';
+        }
+
+        function clearValidationResults() {
+            document.getElementById('validation-test-results').innerHTML = '';
+        }
+
+        // Run unit tests on page load
+        window.addEventListener('load', () => {
+            console.log('Relative References Test Suite loaded');
+            console.log('CellResolver available:', typeof window.CellResolver !== 'undefined');
+        });
+    </script>
+</body>
+</html>
