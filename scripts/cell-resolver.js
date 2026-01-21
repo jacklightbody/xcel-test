@@ -259,7 +259,8 @@ function createLocationString(reference) {
 // Export functions globally for Office.js add-in
 window.CellResolver = {
     resolveCell,
-    createLocationString
+    createLocationString,
+    parseCellAddress
 };
 
 // Also support Node.js/CommonJS for testing
@@ -267,12 +268,12 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         resolveCell,
         createLocationString,
+        parseCellAddress,
         // Keep internal functions available for testing
         _findCellByText: findCellByText,
         _getOffsetCell: getOffsetCell,
         _findIntersection: findIntersection,
         _columnLetterToNumber: columnLetterToNumber,
-        _columnNumberToLetter: columnNumberToLetter,
-        _parseCellAddress: parseCellAddress
+        _columnNumberToLetter: columnNumberToLetter
     };
 }

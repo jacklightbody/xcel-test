@@ -215,79 +215,86 @@ async function handleLoadAndRunTest() {
     
     const jsonText = testJsonInput.value.trim();
     if (!jsonText) {
-        if (currentInputMethod === 'file') {
-            showError('Please select a JSON test file first');
-        } else {
-            showError('Please paste or type JSON test content');
-        }
+        const errorMessage = currentInputMethod === 'file' 
+            ? 'Please select a JSON test file first'
+            : 'Please paste or type JSON test content';
+        showError(errorMessage);
         return;
     }
     
-    // Disable button during processing
-    if (runTestButton) {
-        runTestButton.disabled = true;
-        runTestButton.querySelector('.ms-Button-label').textContent = 'Loading...';
-    }
-    
+    setLoadingState(true, 'Loading...');
     clearResults();
     clearErrors();
     
     try {
-        // Fix common quote issues before parsing
-        const cleanJsonText = jsonText
-            .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')  // Replace smart quotes
-            .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")  // Replace smart single quotes
-            .replace(/\u00A0/g, " ")  // Replace non-breaking spaces
-            .trim();
+        const testData = parseTestData(jsonText);
+        prepareTests(testData);
         
-        const testData = JSON.parse(cleanJsonText);
+        showSuccessFeedback(testJsonInput);
+        setLoadingState(true, 'Running...');
         
-        // Support both single test object and array of tests
-        if (Array.isArray(testData)) {
-            currentTests = testData;
-            currentTest = null;
-            displayMultipleTestInfo(testData);
-        } else {
-            currentTests = null;
-            currentTest = testData;
-            displayTestInfo(testData);
-        }
-        
-        // Show success feedback
-        testJsonInput.style.borderColor = '#107c10';
-        
-        // Now run the test(s)
-        if (runTestButton) {
-            runTestButton.querySelector('.ms-Button-label').textContent = 'Running...';
-        }
-        
-        // Determine which tests to run and execute them
         const testsToRun = currentTests || [currentTest];
         await executeTests(testsToRun, runTestButton);
         
-        // Reset border color
-        setTimeout(function() {
-            testJsonInput.style.borderColor = '';
-        }, 1000);
+        resetBorderColor(testJsonInput, 1000);
     } catch (error) {
-        console.error('Error parsing or running test:', error);
-        let errorMessage = `Failed to parse JSON: ${error.message}`;
-        
-        if (error instanceof SyntaxError) {
-            errorMessage += '\n\nCommon issues:\n• Replace smart quotes ("") with regular quotes (")\n• Check for missing commas\n• Verify brackets and braces are balanced';
-        }
-        
-        showError(errorMessage);
-        testJsonInput.style.borderColor = '#d13438';
-        setTimeout(function() {
-            testJsonInput.style.borderColor = '';
-        }, 2000);
+        handleTestError(error, testJsonInput);
     } finally {
-        if (runTestButton) {
-            runTestButton.disabled = false;
-            runTestButton.querySelector('.ms-Button-label').textContent = 'Run';
-        }
+        setLoadingState(false, 'Run');
     }
+}
+
+function parseTestData(jsonText) {
+    const cleanJsonText = jsonText
+        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')  // Replace smart quotes
+        .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035]/g, "'")  // Replace smart single quotes
+        .replace(/\u00A0/g, " ")  // Replace non-breaking spaces
+        .trim();
+    
+    return JSON.parse(cleanJsonText);
+}
+
+function prepareTests(testData) {
+    if (Array.isArray(testData)) {
+        currentTests = testData;
+        currentTest = null;
+        displayMultipleTestInfo(testData);
+    } else {
+        currentTests = null;
+        currentTest = testData;
+        displayTestInfo(testData);
+    }
+}
+
+function setLoadingState(loading, buttonText) {
+    const runTestButton = document.getElementById('run-test-button');
+    if (runTestButton) {
+        runTestButton.disabled = loading;
+        runTestButton.querySelector('.ms-Button-label').textContent = buttonText;
+    }
+}
+
+function showSuccessFeedback(testJsonInput) {
+    testJsonInput.style.borderColor = '#107c10';
+}
+
+function resetBorderColor(testJsonInput, delay) {
+    setTimeout(function() {
+        testJsonInput.style.borderColor = '';
+    }, delay);
+}
+
+function handleTestError(error, testJsonInput) {
+    console.error('Error parsing or running test:', error);
+    
+    let errorMessage = `Failed to parse JSON: ${error.message}`;
+    if (error instanceof SyntaxError) {
+        errorMessage += '\n\nCommon issues:\n• Replace smart quotes ("") with regular quotes (")\n• Check for missing commas\n• Verify brackets and braces are balanced';
+    }
+    
+    showError(errorMessage);
+    testJsonInput.style.borderColor = '#d13438';
+    resetBorderColor(testJsonInput, 2000);
 }
 
 
@@ -295,64 +302,46 @@ function displayTestInfo(testData) {
     const testInfoDiv = document.getElementById('current-test-info');
     testInfoDiv.style.display = 'block';
     
-    let inputsHtml = '';
-    if (testData.inputs) {
-        inputsHtml = '<p><strong>Inputs:</strong></p><ul>';
-        for (const input of testData.inputs) {
-            let locationInfo;
-            if (window.CellResolver && window.CellResolver.createLocationString) {
-                locationInfo = window.CellResolver.createLocationString(input);
-            } else {
-                // Fallback: create location string manually
-                if (input.cell) {
-                    locationInfo = input.cell;
-                } else if (input.relativeTo) {
-                    if (input.relativeTo.referenceCell) {
-                        locationInfo = `${input.relativeTo.referenceCell}+(${input.relativeTo.colOffset},${input.relativeTo.rowOffset})`;
-                    } else {
-                        locationInfo = `${input.relativeTo.referenceColCell}×${input.relativeTo.referenceRowCell}`;
-                    }
-                } else {
-                    locationInfo = 'Unknown location';
-                }
-            }
-            inputsHtml += `<li>${locationInfo} = ${input.value}</li>`;
-        }
-        inputsHtml += '</ul>';
-    }
-    
-    let assertionsHtml = '';
-    if (testData.assertions) {
-        assertionsHtml = '<p><strong>Assertions:</strong></p><ul>';
-        for (const assertion of testData.assertions) {
-            const tolerance = assertion.tolerance !== undefined ? ` (tolerance: ${assertion.tolerance})` : '';
-            let locationInfo;
-            if (window.CellResolver && window.CellResolver.createLocationString) {
-                locationInfo = window.CellResolver.createLocationString(assertion);
-            } else {
-                // Fallback: create location string manually
-                if (assertion.cell) {
-                    locationInfo = assertion.cell;
-                } else if (assertion.relativeTo) {
-                    if (assertion.relativeTo.referenceCell) {
-                        locationInfo = `${assertion.relativeTo.referenceCell}+(${assertion.relativeTo.colOffset},${assertion.relativeTo.rowOffset})`;
-                    } else {
-                        locationInfo = `${assertion.relativeTo.referenceColCell}×${assertion.relativeTo.referenceRowCell}`;
-                    }
-                } else {
-                    locationInfo = 'Unknown location';
-                }
-            }
-            assertionsHtml += `<li>${locationInfo} should equal ${assertion.equals}${tolerance}</li>`;
-        }
-        assertionsHtml += '</ul>';
-    }
+    const testName = testData.name || 'Unnamed Test';
+    const inputsHtml = createInputsHTML(testData.inputs);
+    const assertionsHtml = createAssertionsHTML(testData.assertions);
     
     testInfoDiv.innerHTML = `
-        <h3>${testData.name || 'Unnamed Test'}</h3>
+        <h3>${testName}</h3>
         ${inputsHtml}
         ${assertionsHtml}
     `;
+}
+
+function createInputsHTML(inputs) {
+    if (!inputs || inputs.length === 0) {
+        return '';
+    }
+    
+    let html = '<p><strong>Inputs:</strong></p><ul>';
+    for (const input of inputs) {
+        const locationInfo = window.CellResolver.createLocationString(input);
+        html += `<li>${locationInfo} = ${input.value}</li>`;
+    }
+    html += '</ul>';
+    
+    return html;
+}
+
+function createAssertionsHTML(assertions) {
+    if (!assertions || assertions.length === 0) {
+        return '';
+    }
+    
+    let html = '<p><strong>Assertions:</strong></p><ul>';
+    for (const assertion of assertions) {
+        const tolerance = assertion.tolerance !== undefined ? ` (tolerance: ${assertion.tolerance})` : '';
+        const locationInfo = window.CellResolver.createLocationString(assertion);
+        html += `<li>${locationInfo} should equal ${assertion.equals}${tolerance}</li>`;
+    }
+    html += '</ul>';
+    
+    return html;
 }
 
 function displayMultipleTestInfo(tests) {
@@ -368,23 +357,7 @@ function displayMultipleTestInfo(tests) {
         if (test.inputs && test.inputs.length > 0) {
             html += '<p style="margin: 5px 0;"><small><strong>Inputs:</strong> ';
             const inputs = test.inputs.map(input => {
-                let locationInfo;
-                if (window.CellResolver && window.CellResolver.createLocationString) {
-                    locationInfo = window.CellResolver.createLocationString(input);
-                } else {
-                    // Fallback: create location string manually
-                    if (input.cell) {
-                        locationInfo = input.cell;
-                    } else if (input.relativeTo) {
-                        if (input.relativeTo.referenceCell) {
-                            locationInfo = `${input.relativeTo.referenceCell}+(${input.relativeTo.colOffset},${input.relativeTo.rowOffset})`;
-                        } else {
-                            locationInfo = `${input.relativeTo.referenceColCell}×${input.relativeTo.referenceRowCell}`;
-                        }
-                    } else {
-                        locationInfo = 'Unknown location';
-                    }
-                }
+                const locationInfo = window.CellResolver.createLocationString(input);
                 return `${locationInfo}=${input.value}`;
             }).join(', ');
             html += inputs;
@@ -432,103 +405,135 @@ function displayMultipleResults(results, passedCount, totalCount) {
 }
 
 function filterAndDisplayResults() {
-    const resultsSection = document.getElementById('results-section');
-    const resultsContent = document.getElementById('results-content');
-    const displayOptions = document.getElementById('display-options');
-    const hidePassedTestsCheckbox = document.getElementById('hide-passed-tests');
-    const visibleCountSpan = document.getElementById('visible-count');
-    const totalCountSpan = document.getElementById('total-count');
-    
-    // If no results yet, just update the checkbox state
     if (!currentResults || currentResults.length === 0) {
         return;
     }
     
+    const hidePassedTests = shouldHidePassedTests();
+    const filteredResults = getFilteredResults(hidePassedTests);
+    
+    const summaryHTML = createSummaryHTML();
+    const resultsHTML = createResultsListHTML(filteredResults, hidePassedTests);
+    
+    displayResults(summaryHTML, resultsHTML);
+    updateResultCounts(filteredResults.length, currentTotalCount);
+}
+
+function shouldHidePassedTests() {
+    const hidePassedTestsCheckbox = document.getElementById('hide-passed-tests');
+    return hidePassedTestsCheckbox && hidePassedTestsCheckbox.checked;
+}
+
+function getFilteredResults(hidePassedTests) {
+    if (hidePassedTests) {
+        return currentResults.filter(result => !result.passed);
+    }
+    return currentResults;
+}
+
+function createSummaryHTML() {
     const allPassed = currentPassedCount === currentTotalCount;
     const summaryClass = allPassed ? 'pass' : 'fail';
     const summaryText = allPassed ? 'ALL PASSED' : `${currentPassedCount}/${currentTotalCount} PASSED`;
     
-    // Filter results based on checkbox
-    const hidePassedTests = hidePassedTestsCheckbox && hidePassedTestsCheckbox.checked;
-    let filteredResults = currentResults;
-    let visibleCount = currentResults.length;
-    
-    if (hidePassedTests) {
-        filteredResults = currentResults.filter(result => !result.passed);
-        visibleCount = filteredResults.length;
-    }
-    
-    let html = `
+    return `
         <div class="test-summary ${summaryClass}">
             Test Suite: ${summaryText}
         </div>
     `;
+}
+
+function createResultsListHTML(results, hidePassedTests) {
+    let html = '';
     
-    // Show filtered results
-    for (let i = 0; i < filteredResults.length; i++) {
-        const result = filteredResults[i];
-        const resultClass = result.passed ? 'pass' : 'fail';
-        const resultText = result.passed ? 'PASSED' : 'FAILED';
-        
-        // For failed tests, always show details
-        // For passed tests (when shown), simplify the display
-        const showFullDetails = !result.passed || !hidePassedTests;
-        
-        html += `
-            <div class="result-item ${resultClass}" style="margin-top: 15px;">
-                <h4>${result.testName} - ${resultText}</h4>
-        `;
-        
-        if (result.error) {
-            html += `<div class="error-message" style="margin: 5px 0; padding: 10px;">Error: ${result.error}</div>`;
-        }
-        
-        if (showFullDetails) {
-            for (const assertionResult of result.assertionResults) {
-                const assertionClass = assertionResult.passed ? 'pass' : 'fail';
-                let detailsHtml = '';
-                
-                if (assertionResult.passed) {
-                    if (assertionResult.difference !== null) {
-                        detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}, Difference: ${assertionResult.difference}</div>`;
-                    } else {
-                        detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}</div>`;
-                    }
-                } else {
-                    if (assertionResult.difference !== null) {
-                        detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}, Difference: ${assertionResult.difference} (tolerance: ${assertionResult.tolerance})</div>`;
-                    } else {
-                        detailsHtml = `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}</div>`;
-                    }
-                }
-                
-                html += `
-                    <div class="assertion ${assertionClass}">
-                        <strong>${assertionResult.cell}</strong>
-                        ${detailsHtml}
-                    </div>
-                `;
-            }
-        } else {
-            // For passed tests when hiding details, just show a summary
-            html += `<div class="assertion-summary">✓ ${result.assertionResults.length} assertions passed</div>`;
-        }
-        
-        html += '</div>';
+    for (const result of results) {
+        html += createSingleResultHTML(result, hidePassedTests);
     }
     
-    resultsContent.innerHTML = html;
+    return html;
+}
+
+function createSingleResultHTML(result, hidePassedTests) {
+    const resultClass = result.passed ? 'pass' : 'fail';
+    const resultText = result.passed ? 'PASSED' : 'FAILED';
+    const showFullDetails = !result.passed || !hidePassedTests;
+    
+    let html = `
+        <div class="result-item ${resultClass}" style="margin-top: 15px;">
+            <h4>${result.testName} - ${resultText}</h4>
+    `;
+    
+    if (result.error) {
+        html += `<div class="error-message" style="margin: 5px 0; padding: 10px;">Error: ${result.error}</div>`;
+    }
+    
+    if (showFullDetails) {
+        html += createAssertionDetailsHTML(result.assertionResults);
+    } else {
+        html += `<div class="assertion-summary">✓ ${result.assertionResults.length} assertions passed</div>`;
+    }
+    
+    html += '</div>';
+    return html;
+}
+
+function createAssertionDetailsHTML(assertionResults) {
+    let html = '';
+    
+    for (const assertionResult of assertionResults) {
+        const assertionClass = assertionResult.passed ? 'pass' : 'fail';
+        const detailsHtml = createAssertionDetailsText(assertionResult);
+        
+        html += `
+            <div class="assertion ${assertionClass}">
+                <strong>${assertionResult.cell}</strong>
+                ${detailsHtml}
+            </div>
+        `;
+    }
+    
+    return html;
+}
+
+function createAssertionDetailsText(assertionResult) {
+    if (assertionResult.passed) {
+        if (assertionResult.difference !== null) {
+            return `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}, Difference: ${assertionResult.difference}</div>`;
+        } else {
+            return `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}</div>`;
+        }
+    } else {
+        if (assertionResult.difference !== null) {
+            return `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}, Difference: ${assertionResult.difference} (tolerance: ${assertionResult.tolerance})</div>`;
+        } else {
+            return `<div class="assertion-details">Actual: ${assertionResult.actual}, Expected: ${assertionResult.expected}</div>`;
+        }
+    }
+}
+
+function displayResults(summaryHTML, resultsHTML) {
+    const resultsSection = document.getElementById('results-section');
+    const resultsContent = document.getElementById('results-content');
+    const displayOptions = document.getElementById('display-options');
+    
+    resultsContent.innerHTML = summaryHTML + resultsHTML;
     resultsSection.style.display = 'block';
     
-    // Show display options and update counts
+    // Show display options if we have results
     if (displayOptions && currentResults.length > 0) {
         const testCountDisplay = document.querySelector('.test-count-display');
         if (testCountDisplay) {
             testCountDisplay.style.display = 'flex';
         }
-        if (visibleCountSpan) visibleCountSpan.textContent = visibleCount;
-        if (totalCountSpan) totalCountSpan.textContent = currentTotalCount;
     }
+}
+
+function updateResultCounts(visibleCount, totalCount) {
+    const visibleCountSpan = document.getElementById('visible-count');
+    const totalCountSpan = document.getElementById('total-count');
+    
+    if (visibleCountSpan) visibleCountSpan.textContent = visibleCount;
+    if (totalCountSpan) totalCountSpan.textContent = totalCount;
 }
 
 function showError(message) {

@@ -3,7 +3,7 @@
 An Office.js Excel add-in that allows you to write and run unit tests for Excel workbooks to validate the correctness of a set of formulas you've created.
 
 ## Usage
-![Demo](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/documentation/example-test-run.gif)
+![Demo](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/examples/example-test-run.gif)
 1. Open the Excel workbook you want to test
 2. Open the add-in task pane (via the ribbon button or Insert > My Add-ins)
 3. Choose your input method:
@@ -197,7 +197,7 @@ If the automated setup fails, follow these manual steps:
    - **Mac users**: The manifest is auto-installed! Just go to **Inert** → **My Add-ins** and select "Excel Unit Test Runner"
    - **Other users**: Go to **Insert** → **Add-ins** → **My Add-ins** → **Upload My Add-in** and select `manifest.xml`
 
-![where to find the add-in](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/documentation/add-add-in.png)
+![where to find the add-in](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/examples/add-add-in.png)
 
 
 ## How It Works
@@ -223,7 +223,8 @@ This means the unit tests both **preserves state** and **exactly match** the nat
 │   ├── taskpane.js          # UI logic and test execution
 │   └── taskpane.css         # Styling
 ├── scripts/
-│   └── test-runner.js       # Core test execution logic (reference implementation)
+│   ├── test-runner.js       # Core test execution logic
+│   └── cell-resolver.js     # Cell reference resolution utilities
 ├── tests/
 │   └── sample-test.json     # Example test file
 └── README.md                # This file
@@ -255,7 +256,6 @@ This means the unit tests both **preserves state** and **exactly match** the nat
 
 ## Todo
 
-- ✅ Allow for relative references (i.e. 2 cells to the right of "total income" on sheet 3)
 - UI to help create tests
 - Bundle and deploy to msft so installation is easy
 - Guard mode to retrigger on save automatically

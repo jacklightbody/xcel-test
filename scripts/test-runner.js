@@ -100,19 +100,7 @@ async function resolveTestCaseReferences(testCase, workbook, context) {
     return resolvedTestCase;
 }
 
-/**
- * Parses a cell address like "Assumptions!B2" into {worksheetName, cellAddress}
- */
-function parseCellAddress(fullAddress) {
-    const parts = fullAddress.split('!');
-    if (parts.length !== 2) {
-        throw new Error(`Invalid cell address format: ${fullAddress}. Expected format: "SheetName!A1"`);
-    }
-    return {
-        worksheetName: parts[0],
-        cellAddress: parts[1]
-    };
-}
+
 /**
  * Snapshot the current state of all cells referenced in inputs and assertions
  */
@@ -123,7 +111,7 @@ async function snapshotWorksheetState(context, cellAddresses) {
     // Group cells by worksheet
     const cellsByWorksheet = {};
     for (const fullAddress of cellAddresses) {
-        const parsed = parseCellAddress(fullAddress);
+        const parsed = window.CellResolver.parseCellAddress(fullAddress);
         if (!cellsByWorksheet[parsed.worksheetName]) {
             cellsByWorksheet[parsed.worksheetName] = [];
         }
@@ -183,7 +171,7 @@ async function applyInputs(context, inputs) {
     // Group inputs by worksheet for batch operations
     const inputsByWorksheet = {};
     for (const [fullAddress, value] of Object.entries(inputs)) {
-        const parsed = parseCellAddress(fullAddress);
+        const parsed = window.CellResolver.parseCellAddress(fullAddress);
         if (!inputsByWorksheet[parsed.worksheetName]) {
             inputsByWorksheet[parsed.worksheetName] = [];
         }
@@ -240,7 +228,7 @@ async function readOutputs(context, assertionCells) {
     // Step 1: Get all ranges and load their properties
     for (const cellAddress of assertionCells) {
         try {
-            const parsed = parseCellAddress(cellAddress);
+            const parsed = window.CellResolver.parseCellAddress(cellAddress);
             const worksheet = workbook.worksheets.getItem(parsed.worksheetName);
             const range = worksheet.getRange(parsed.cellAddress);
             
@@ -329,7 +317,7 @@ async function restoreState(context, snapshot) {
     // Group cells by worksheet
     const cellsByWorksheet = {};
     for (const [fullAddress, state] of Object.entries(snapshot)) {
-        const parsed = parseCellAddress(fullAddress);
+        const parsed = window.CellResolver.parseCellAddress(fullAddress);
         if (!cellsByWorksheet[parsed.worksheetName]) {
             cellsByWorksheet[parsed.worksheetName] = [];
         }
@@ -459,7 +447,7 @@ async function runTestSuite(testCases) {
                 console.error(`Error resolving test ${testName}:`, error);
                 // Add error result but continue with other tests
                 resolvedTestCases.push({
-                    name: testName,
+                    testName: testName,
                     passed: false,
                     assertionResults: [],
                     error: error.message
@@ -499,7 +487,7 @@ async function runTestSuite(testCases) {
                         passedCount++;
                     }
                 } catch (error) {
-                    const testName = resolvedTestCase.name || `Test ${i + 1}`;
+                    const testName = resolvedTestCase.testName || `Test ${i + 1}`;
                     console.error(`Error running test ${testName}:`, error);
                     // If a test fails, add error result but continue with other tests
                     allResults.push({
@@ -582,7 +570,7 @@ async function runTestWithoutProtection(testCase, context) {
     }
     
     return {
-        name: testCase.name || 'Unnamed Test',
+        testName: testCase.name || 'Unnamed Test',
         passed: results.every(r => r.passed),
         assertionResults: results,
         error: null
@@ -592,12 +580,12 @@ async function runTestWithoutProtection(testCase, context) {
 // Export functions globally for Office.js add-in
 window.ExcelTestRunner = {
     runTestSuite: runTestSuite,
-    parseCellAddress: parseCellAddress
+    parseCellAddress: window.CellResolver.parseCellAddress
 };
 
 // Also support Node.js/CommonJS for reference
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
-        parseCellAddress: parseCellAddress
+        parseCellAddress: window.CellResolver.parseCellAddress
     };
 }
