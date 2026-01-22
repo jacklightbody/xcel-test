@@ -17,37 +17,50 @@ An Office.js Excel add-in that allows you to write and run unit tests for Excel 
 
 Test files are JSON files that contain a list of tests you want to run. Each test has a set of input cells and the values to override to, as well as a set of output cells and their expected values given the inputs.
 
-### New Schema with Relative References
+### Example 1: Simple Cell Reference
+If you know all cell addresses, you can easily test that specific addresses evaluate to given values with certain inputs.
+```json
+[
+  {
+    "name": "Base case revenue",
+    "inputs": [
+      {
+        "cell": "Sheet1!B2",
+        "value": 3
+      },
+      {
+        "cell": "Sheet1!B3", 
+        "value": 120000
+      }
+    ],
+    "assertions": [
+      {
+        "cell": "Sheet1!B5",
+        "equals": 40000,
+        "tolerance": 1
+      }
+    ]
+  }
+]
+```
 
-The test format now supports both direct cell references and relative references based on text matching:
+### Example 2: Offset reference
+If instead you only know a cell position relative to another cell
 
 ```json
 [
   {
-    "name": "Mixed Direct and Relative References",
+    "name": "Offset references",
     "inputs": [
-      {
-        "cell": "Assumptions!B2",
-        "value": 0.05
-      },
       {
         "relativeTo": {
           "sheet": "Assumptions",
           "referenceCell": "Growth Rate",
-          "colOffset": 0,
+          "colOffset": -1, # 1 col to the left
           "rowOffset": 1
         },
-        "value": 100000
+        "value": 0.05
       },
-      {
-        "relativeTo": {
-          "sheet": "Assumptions",
-          "referenceCell": "Total Income",
-          "colOffset": 2,
-          "rowOffset": -1
-        },
-        "value": 50000
-      }
     ],
     "assertions": [
       {
@@ -55,67 +68,38 @@ The test format now supports both direct cell references and relative references
         "equals": 1234567,
         "tolerance": 1
       },
-      {
-        "relativeTo": {
-          "sheet": "Outputs",
-          "referenceCell": "Total Revenue",
-          "colOffset": 1,
-          "rowOffset": 0
-        },
-        "equals": 2469134,
-        "tolerance": 1
-      },
-      {
-        "relativeTo": {
-          "sheet": "Outputs",
-          "referenceColCell": "Profit Margin",
-          "referenceRowCell": "2024"
-        },
-        "equals": 0.15,
-        "tolerance": 0.01
-      }
     ]
   }
 ]
 ```
 
-### Reference Types
+### Example 3: Relative reference
+If instead you only know a cell position relative to two other cells
 
-#### 1. Direct Cell References (Legacy)
 ```json
-{
-  "cell": "Sheet1!A1",
-  "value": 100
-}
+[
+  {
+    "name": "Relative References",
+    "inputs": [
+      {
+        "cell": "Sheet1!B2",
+        "value": 3
+      },
+    ],
+    "assertions": [
+      {
+        "relativeTo": {
+          "sheet": "Sheet1",
+          "referenceColCell": "Last Fiscal Year",
+          "referenceRowCell": "Total"
+        },
+        "equals": 100,
+        "tolerance": 1
+      },
+    ]
+  }
+]
 ```
-
-#### 2. Offset References
-Find a cell containing specific text, then offset by columns and rows:
-```json
-{
-  "relativeTo": {
-    "sheet": "Sheet1",
-    "referenceCell": "Total Income",
-    "colOffset": 2,    // 2 columns to the right
-    "rowOffset": -1     // 1 row up
-  },
-  "value": 1000
-}
-```
-
-#### 3. Intersection References
-Find the intersection of a column header and row header:
-```json
-{
-  "relativeTo": {
-    "sheet": "Sheet1",
-    "referenceColCell": "Product A",
-    "referenceRowCell": "Q1 2024"
-  },
-  "value": 500
-}
-```
-
 ### Validation Rules
 
 - **Mutually Exclusive**: Each input/assertion must have either `cell` OR `relativeTo`, never both
@@ -125,33 +109,6 @@ Find the intersection of a column header and row header:
 - **Validation Timing**: All test cases are validated before any tests run
 - **Error Handling**: Multiple text matches throw clear errors to prevent ambiguity
 
-### Backward Compatibility
-
-Existing test files with direct cell references continue to work unchanged:
-```json
-[
-  {
-    "name": "Base case revenue",
-    "inputs": [
-      {
-        "cell": "Assumptions!B2",
-        "value": 0.05
-      },
-      {
-        "cell": "Assumptions!B3", 
-        "value": 100000
-      }
-    ],
-    "assertions": [
-      {
-        "cell": "Outputs!E12",
-        "equals": 1234567,
-        "tolerance": 1
-      }
-    ]
-  }
-]
-```
 ## Setup
 
 ### Quick Setup (Recommended)
@@ -229,13 +186,6 @@ This means the unit tests both **preserves state** and **exactly match** the nat
 │   └── sample-test.json     # Example test file
 └── README.md                # This file
 ```
-
-## Safety Guarantees
-
-- **State Snapshot**: All cell values and formulas are captured before test execution
-- **Atomic Restore**: State restoration happens in a `finally` block, ensuring it executes even if assertions fail
-- **Formula Preservation**: Original formulas are restored if they were overwritten by input values
-- **Error Handling**: Restore operations are wrapped in error handling to prevent data loss
 
 ## Limitations
 

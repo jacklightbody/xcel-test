@@ -3,17 +3,17 @@
     "name": "Base case revenue",
     "inputs": [
       {
-        "cell": "Assumptions!B2",
+        "cell": "Sheet1!B2",
         "value": 3
       },
       {
-        "cell": "Assumptions!B3", 
+        "cell": "Sheet1!B3", 
         "value": 120000
       }
     ],
     "assertions": [
       {
-        "cell": "Outputs!B5",
+        "cell": "Sheet1!B5",
         "equals": 40000,
         "tolerance": 1
       }
