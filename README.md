@@ -1,24 +1,83 @@
 # Excel Unit Test Runner
 
-An Office.js Excel add-in that allows you to write and run unit tests for Excel workbooks to validate the correctness of a set of formulas you've created.
+Test your Excel formulas like code. Write unit tests to validate calculations, catch errors early, and refactor with confidence.
 
-## Usage
+## Why Use This?
+
+- **Catch errors before they matter**: Validate complex formula logic automatically
+- **Refactor fearlessly**: Change formulas knowing tests will catch breaks
+- **Document assumptions**: Tests serve as living documentation of expected behavior
+- **Save time**: Run comprehensive checks in seconds vs. manual verification
+
+## Quick Start
+
 ![Demo](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/examples/example-test-run.gif)
-1. Open the Excel workbook you want to test
-2. Open the add-in task pane (via the ribbon button or Insert > My Add-ins)
-3. Choose your input method:
-   - **Paste JSON**: Copy and paste JSON test content directly
-   - **Load File**: Select a JSON test file from your computer
-4. Review the test inputs and assertions that are displayed
-5. Click "Run Test" to execute (or use **Ctrl+Enter** / **Cmd+Enter** hotkey)
-6. View the results showing which assertions passed or failed
+
+1. Run setup: `./setup.sh && ./start.sh`
+2. Open your Excel workbook
+3. Open the add-in (Insert → My Add-ins → "Excel Unit Test Runner")
+4. Load or paste your test JSON
+5. Hit **Run Test** (or **Ctrl+Enter** / **Cmd+Enter**)
+6. See which assertions passed or failed
+
+## How It Works
+
+Each test runs in isolation without permanently changing your workbook:
+
+1. **Snapshot**: Captures original values and formulas from all referenced cells
+2. **Apply**: Sets input values as specified
+3. **Calculate**: Forces full Excel recalculation
+4. **Assert**: Compares actual vs. expected values (with optional tolerance)
+5. **Restore**: Returns workbook to original state
+
+Your workbook is **always restored** to its original state, so you can run tests repeatedly without side effects.
 
 ## Test Format
 
-Test files are JSON files that contain a list of tests you want to run. Each test has a set of input cells and the values to override to, as well as a set of output cells and their expected values given the inputs.
+Tests are JSON files with inputs (values to set) and assertions (expected results).
 
-### Example 1: Simple Cell Reference
-If you know all cell addresses, you can easily test that specific addresses evaluate to given values with certain inputs.
+### Test Property Reference
+
+#### Input Properties
+
+| Property | Type | Required | Notes |
+|----------|------|----------|-------|
+| `cell` | string | One of `cell` or `relativeTo` | Direct cell reference (e.g., "Sheet1!B2") |
+| `relativeTo` | object | One of `cell` or `relativeTo` | Position relative to reference cell(s) |
+| `value` | any | ✓ Yes | Value to set in the input cell |
+
+#### Assertion Properties
+
+| Property | Type | Required | Notes |
+|----------|------|----------|-------|
+| `cell` | string | One of `cell` or `relativeTo` | Direct cell reference (e.g., "Sheet1!B5") |
+| `relativeTo` | object | One of `cell` or `relativeTo` | Position relative to reference cell(s) |
+| `equals` | any | ✓ Yes | Expected value |
+| `tolerance` | number | No | Allowed difference for numeric comparisons |
+
+#### RelativeTo Object (Offset-based)
+
+| Property | Type | Required | Notes |
+|----------|------|----------|-------|
+| `sheet` | string | ✓ Yes | Sheet name |
+| `referenceCell` | string | ✓ Yes | Text content of reference cell |
+| `colOffset` | number | ✓ Yes | Columns from reference (-1 = left, 1 = right) |
+| `rowOffset` | number | ✓ Yes | Rows from reference (-1 = up, 1 = down) |
+
+#### RelativeTo Object (Intersection-based)
+
+| Property | Type | Required | Notes |
+|----------|------|----------|-------|
+| `sheet` | string | ✓ Yes | Sheet name |
+| `referenceColCell` | string | ✓ Yes | Text content of cell defining column |
+| `referenceRowCell` | string | ✓ Yes | Text content of cell defining row |
+
+### Examples
+
+**Example 1: Direct Cell References**
+
+Test specific cells with known addresses:
+
 ```json
 [
   {
@@ -44,47 +103,49 @@ If you know all cell addresses, you can easily test that specific addresses eval
 ]
 ```
 
-### Example 2: Offset reference
-If instead you only know a cell position relative to another cell
+**Example 2: Offset References**
+
+Find cells relative to labeled cells:
 
 ```json
 [
   {
-    "name": "Offset references",
+    "name": "Growth rate scenario",
     "inputs": [
       {
         "relativeTo": {
           "sheet": "Assumptions",
           "referenceCell": "Growth Rate",
-          "colOffset": -1, # 1 col to the left
-          "rowOffset": 1
+          "colOffset": 1,
+          "rowOffset": 0
         },
         "value": 0.05
-      },
+      }
     ],
     "assertions": [
       {
         "cell": "Outputs!E12",
         "equals": 1234567,
         "tolerance": 1
-      },
+      }
     ]
   }
 ]
 ```
 
-### Example 3: Relative reference
-If instead you only know a cell position relative to two other cells
+**Example 3: Intersection References**
+
+Find cells at the intersection of row/column headers:
 
 ```json
 [
   {
-    "name": "Relative References",
+    "name": "Fiscal year total",
     "inputs": [
       {
         "cell": "Sheet1!B2",
         "value": 3
-      },
+      }
     ],
     "assertions": [
       {
@@ -95,44 +156,33 @@ If instead you only know a cell position relative to two other cells
         },
         "equals": 100,
         "tolerance": 1
-      },
+      }
     ]
   }
 ]
 ```
-### Validation Rules
-
-- **Mutually Exclusive**: Each input/assertion must have either `cell` OR `relativeTo`, never both
-- **Required Properties**:
-  - Inputs: `value` is required
-  - Assertions: `equals` is required
-- **Validation Timing**: All test cases are validated before any tests run
-- **Error Handling**: Multiple text matches throw clear errors to prevent ambiguity
 
 ## Setup
 
-### Quick Setup (Recommended)
+### Automated Setup (Recommended)
 
-Run `setup.sh` to automatically install dependencies, generate trusted certificates, and prepare everything:
 ```bash
 ./setup.sh && ./start.sh
 ```
 
-This script will:
-- Install mkcert (if needed) for trusted certificates
-- Generate trusted HTTPS certificates
-- **Auto-install the manifest for Mac Excel users**
-- **Start the server** (via `./start.sh`)
+This will:
+- Install mkcert (if needed) and generate trusted HTTPS certificates
+- Auto-install the manifest for Mac Excel users
+- Start the development server
 
-After the first initialization, you can call `./start.sh` to start the server.
+After initial setup, just run `./start.sh` to start the server.
 
-### Manual Setup (Fallback)
+### Manual Setup
 
-If the automated setup fails, follow these manual steps:
+If automated setup fails:
 
-1. **Install dependencies**:
+1. **Install mkcert**:
    ```bash
-   # Install mkcert for trusted certificates:
    # macOS: brew install mkcert
    # Windows: choco install mkcert
    # Linux: sudo apt-get install libnss3-tools (then download mkcert)
@@ -145,32 +195,15 @@ If the automated setup fails, follow these manual steps:
    mkcert -key-file certs/key.pem -cert-file certs/cert.pem localhost 127.0.0.1 ::1
    ```
 
-3. **Start the server**:
-   ```bash
-   ./start.sh
-   ```
+3. **Start server**: `./start.sh`
 
-4. **Launch Excel**:
-   - **Mac users**: The manifest is auto-installed! Just go to **Inert** → **My Add-ins** and select "Excel Unit Test Runner"
-   - **Other users**: Go to **Insert** → **Add-ins** → **My Add-ins** → **Upload My Add-in** and select `manifest.xml`
+4. **Install add-in**:
+   - **Mac**: Auto-installed! Go to Insert → My Add-ins → "Excel Unit Test Runner"
+   - **Other**: Insert → Add-ins → My Add-ins → Upload My Add-in → select `manifest.xml`
 
-![where to find the add-in](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/examples/add-add-in.png)
+![Where to find the add-in](https://raw.githubusercontent.com/jacklightbody/xcel-test/refs/heads/main/examples/add-add-in.png)
 
-
-## How It Works
-
-For each test, the add-in performs the following steps:
-
-1. **Snapshot State**: Captures current values and formulas for all cells referenced in inputs and assertions
-2. **Apply Inputs**: Sets the input values as specified in the test
-3. **Force Calculation**: Triggers Excel's full calculation to ensure all dependent formulas recalculate
-4. **Read Outputs**: Retrieves the actual calculated values from assertion cells
-5. **Evaluate Assertions**: Compares actual vs expected values (with tolerance for numeric comparisons)
-6. **Restore State**: Restores all original values and formulas, ensuring the workbook is unchanged
-
-This means the unit tests both **preserves state** and **exactly match** the native excel behavior.
-
-## Repo Structure
+## Project Structure
 
 ```
 /
@@ -181,36 +214,38 @@ This means the unit tests both **preserves state** and **exactly match** the nat
 │   └── taskpane.css         # Styling
 ├── scripts/
 │   ├── test-runner.js       # Core test execution logic
-│   └── cell-resolver.js     # Cell reference resolution utilities
+│   └── cell-resolver.js     # Cell reference resolution
 ├── tests/
 │   └── sample-test.json     # Example test file
-└── README.md                # This file
+└── README.md
 ```
-
-## Limitations
-
-- Tests should only modify cells specified in the inputs - other cells are snapshotted but restoring them may affect unrelated workbook state
-- Large workbooks with extensive calculations may take time to snapshot/restore
-- The add-in requires a web server to function (cannot run from `file://` protocol)
 
 ## Troubleshooting
 
-- **"Failed to access worksheet"**: Ensure worksheet names match exactly (case-sensitive)
-- **"Invalid cell address format"**: Cell addresses must be in format "SheetName!A1"
-- **"No cell found containing text"**: Ensure the reference text exists exactly as written in the specified worksheet
-- **"Multiple cells found containing text"**: Reference text must be unique within the worksheet
-- **"Invalid offset"**: Column and row offsets cannot result in negative cell positions
-- **"Validation failed"**: Check that each input/assertion has either `cell` OR `relativeTo`, not both
-- **Calculation not updating**: The add-in waits 100ms after forcing calculation; complex models may need more time
-- **State not restoring**: Check browser console for restore errors; formulas may need to be restored before values
+| Issue | Solution |
+|-------|----------|
+| "Failed to access worksheet" | Sheet names are case-sensitive—verify exact match |
+| "Invalid cell address format" | Use format "SheetName!A1" |
+| "No cell found containing text" | Ensure reference text exists exactly in specified sheet |
+| "Multiple cells found containing text" | Reference text must be unique in worksheet |
+| "Invalid offset" | Offsets cannot result in negative cell positions |
+| Calculations not updating | Complex models may need more than default 100ms wait |
+| State not restoring properly | Check browser console; formulas restore before values |
 
-## Todo
+## Known Limitations
 
-- UI to help create tests
-- Bundle and deploy to msft so installation is easy
-- Guard mode to retrigger on save automatically
-- Locking. Prevent (or at least detect) user edits while tests are running
-- Snapshot immprovements. Can we snapshot and restore once across every test case rather than one per test?
-- Parallelism or some other method to speed up for large tests suites
-- Allow interrupting/cancelling a test
-- Handle different types of outputs (true/false, string) not just floats
+- Tests modify only specified input cells, but restoration touches all referenced cells
+- Large workbooks with extensive calculations may be slow to snapshot/restore
+- Requires web server (cannot run from `file://` protocol)
+- Reference text must be unique within each worksheet
+
+## Roadmap
+
+- [ ] UI to help create tests interactively
+- [ ] Publish to Microsoft add-in store for easy installation
+- [ ] Guard mode: auto-run tests on workbook save
+- [ ] Lock workbook during test execution
+- [ ] Optimize snapshot/restore to run once per suite
+- [ ] Parallel test execution for large suites
+- [ ] Allow cancelling in-progress tests
+- [ ] Support for boolean and string assertions
